@@ -1,7 +1,8 @@
 # 🩺 MedAssist — Concierge Symptom Intelligence & Clinical Triage Engine
 
-[![Live Demo](https://img.shields.io/badge/Demo-Live%20Preview-10B981?style=for-the-badge&logo=vercel)](https://vercel.com)
-[![Architecture](https://img.shields.io/badge/Architecture-ReAct%20Agentic%20Pipeline-D4AF37?style=for-the-badge)](https://github.com)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-10B981?style=for-the-badge&logo=github)](https://sathvik1696.github.io/medassist-symptom-helper/)
+[![Repository](https://img.shields.io/badge/GitHub-Sathvik1696%2Fmedassist--symptom--helper-181717?style=for-the-badge&logo=github)](https://github.com/Sathvik1696/medassist-symptom-helper)
+[![Architecture](https://img.shields.io/badge/Architecture-ReAct%20Agentic%20Pipeline-D4AF37?style=for-the-badge)](https://github.com/Sathvik1696/medassist-symptom-helper)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Vanilla)-3B82F6?style=for-the-badge)](https://github.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg?style=for-the-badge)](LICENSE)
 
