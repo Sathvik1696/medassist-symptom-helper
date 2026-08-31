@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="MedAssist — Quiet Luxury AI Symptom Intelligence & Clinical Decision Support Concierge.">
+  <meta name="theme-color" content="#07080b">
+  <meta name="robots" content="noindex, nofollow">
+
+  <title>MedAssist — Concierge Symptom Intelligence</title>
+
+  <!-- Google Fonts Preconnect & Luxury Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>">
+</head>
+<body>
+
+  <!-- Interactive Dynamic Cursor Spotlight -->
+  <div id="cursor-spotlight" aria-hidden="true"></div>
+
+  <div class="app-container" id="app">
+
+    <!-- ── Luxury Concierge Header ── -->
+    <header class="app-header" role="banner">
+      <div class="header-brand" id="brand-home-btn" title="Return to Clinical Studio">
+        <div class="header-crest">
+          <div class="crest-ring"></div>
+          <span class="crest-symbol">🩺</span>
+        </div>
+        <div class="brand-text">
+          <h1 class="brand-title">MedAssist</h1>
+          <span class="brand-subtitle">Concierge Symptom Intelligence</span>
+        </div>
+      </div>
+
+      <div class="header-center-nav">
+        <div class="pipeline-status-badge">
+          <span class="pipeline-pulse-dot"></span>
+          <span>4-Stage ReAct Clinical Engine</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Audio Haptics Toggle -->
+        <button class="header-pill-btn" id="audio-toggle-btn" title="Toggle tactile acoustic feedback">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          <span id="audio-status-label">Haptics On</span>
+        </button>
+
+        <!-- Active Memory Buffer Inspector -->
+        <button class="header-pill-btn" id="memory-drawer-btn" title="Inspect session remembered clinical entities">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"></path><path d="M12 6v6l4 2"></path></svg>
+          <span>Memory</span>
+          <span class="memory-badge" id="memory-counter">0</span>
+        </button>
+
+        <!-- New Consultation Reset -->
+        <button class="header-pill-btn" id="clear-btn" title="Initialize new consultation session">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          <span>Reset</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── Main Chat / Clinical Stream ── -->
+    <main class="chat-area" id="chat-messages" role="log" aria-label="Clinical Conversation Log" aria-live="polite">
+      <!-- Welcome Hero & Interactive Studio injected by app.js -->
+    </main>
+
+    <!-- ── Luxury Input Concierge Bar ── -->
+    <footer class="input-concierge-bar" role="form" aria-label="Symptom Intake Form">
+      <div class="input-concierge-inner">
+        <div class="input-capsule-wrap">
+          <div class="input-capsule-glow"></div>
+          
+          <!-- Voice Input Mic Button -->
+          <button class="input-mic-btn" id="voice-input-btn" title="Spoken symptom intake (Speech Recognition)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          </button>
+
+          <textarea
+            id="user-input"
+            placeholder="Describe your symptoms in natural language or select anatomical zones above..."
+            rows="1"
+            maxlength="1000"
+            aria-label="Symptom Description Input"
+          ></textarea>
+          <span class="input-char-counter" id="char-count">0/1000</span>
+        </div>
+
+        <button class="send-action-btn" id="send-btn" aria-label="Execute Clinical Analysis" disabled title="Send for clinical analysis">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+      </div>
+
+      <div class="luxury-footer-watermark">
+        <span><kbd>Enter</kbd> to analyze · <kbd>Shift + Enter</kbd> for line break</span>
+        <span>MedAssist Private Intelligence · Non-Diagnostic Clinical Reference</span>
+      </div>
+    </footer>
+
+    <!-- ── Emergency Circuit Breaker Overlay ── -->
+    <div class="emergency-overlay" id="emergency-overlay" role="alertdialog" aria-modal="true" aria-label="Critical Emergency Alert">
+      <div class="emergency-overlay-bg"></div>
+      <div class="emergency-card-modal">
+        <div class="emergency-siren-crest">🚨</div>
+        <h2 class="emergency-modal-title">Medical Emergency Detected</h2>
+        <p class="emergency-modal-desc">
+          Your reported symptoms present acute clinical red flags. Please seek immediate professional emergency medical care.
+        </p>
+
+        <div class="emergency-dial-grid">
+          <a href="tel:911" class="emergency-dial-btn" style="text-decoration: none;">🇺🇸 Call 911</a>
+          <a href="tel:112" class="emergency-dial-btn" style="text-decoration: none;">🇪🇺 Call 112</a>
+        </div>
+
+        <button class="emergency-dismiss-action" id="emergency-dismiss">
+          I Understand — View Emergency Dossier
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Session Memory Inspector Drawer ── -->
+    <div class="memory-drawer-backdrop" id="memory-drawer-backdrop">
+      <div class="memory-drawer-panel">
+        <div class="drawer-header">
+          <h3 class="drawer-title">Active Session Memory</h3>
+          <button class="drawer-close-btn" id="memory-drawer-close">✕</button>
+        </div>
+        <p style="font-size: 0.78rem; color: var(--platinum-400); margin-bottom: 16px;">
+          Symptoms and clinical context tracked across past conversation turns in this session:
+        </p>
+        <div class="memory-items-list" id="memory-items-container">
+          <!-- Populated by app.js -->
+        </div>
+        <div style="margin-top: 16px; pt: 16px; border-top: 1px solid var(--border-hairline);">
+          <button class="header-pill-btn" id="clear-memory-btn" style="width: 100%; justify-content: center;">
+            Clear Memory Buffer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Toast Notification ── -->
+    <div class="luxury-toast" id="luxury-toast">Copied to clipboard</div>
+
+  </div>
+
+  <!-- App Bootstrap -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
