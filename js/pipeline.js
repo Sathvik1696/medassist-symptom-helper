@@ -347,6 +347,171 @@ export function executePipeline(rawInput, chatHistory = []) {
     })),
     missingQuestions,
     reactTrace,
+    engine: 'local',
+    timestamp: new Date().toISOString()
+  };
+}
+
+/**
+ * Async Pipeline Execution with optional Live Gemini AI Engine
+ * 
+ * @param {string} rawInput - User symptom prompt
+ * @param {Object[]} chatHistory - Past session turns
+ * @param {Object} aiConfig - { apiKey, model, isLiveAiEnabled }
+ * @returns {Promise<Object>} Pipeline result
+ */
+export async function executePipelineAsync(rawInput, chatHistory = [], aiConfig = {}) {
+  // 1. Run local deterministic triage FIRST for guaranteed safety
+  const localResult = executePipeline(rawInput, chatHistory);
+
+  // If it's an emergency or error, return immediately (safety rule)
+  if (localResult.type === 'emergency' || localResult.type === 'error') {
+    return localResult;
+  }
+
+  // If Gemini API is not configured or disabled, return local result
+  if (!aiConfig.isLiveAiEnabled || !aiConfig.apiKey || !aiConfig.apiKey.trim()) {
+    return localResult;
+  }
+
+  // 2. Call Google Gemini API for live humanized clinical synthesis
+  try {
+    const geminiResult = await callGeminiLiveEngine(rawInput, chatHistory, localResult, aiConfig);
+    if (geminiResult) {
+      return geminiResult;
+    }
+  } catch (err) {
+    console.warn('Gemini API call encountered an error. Falling back to local engine:', err);
+  }
+
+  // Fallback to local verified knowledge base
+  return localResult;
+}
+
+/**
+ * Google Gemini Live Engine Caller
+ */
+async function callGeminiLiveEngine(rawInput, chatHistory, localResult, aiConfig) {
+  const apiKey = aiConfig.apiKey.trim();
+  const model = aiConfig.model || 'gemini-1.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const pastContext = chatHistory.slice(-4).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+  const retrievedFacts = localResult.knowledge.map(k => `Condition: ${k.displayName}\n- Causes: ${k.commonCauses.join('; ')}\n- Self-care: ${k.selfCare.join('; ')}\n- Seek care if: ${k.seekCareIf.join('; ')}`).join('\n\n');
+
+  const systemInstruction = `You are MedAssist, a precision clinical concierge decision-support assistant.
+Your goal is to provide warm, humanized, empathetic, and medically accurate educational guidance based strictly on the retrieved clinical facts.
+You MUST NOT diagnose or prescribe treatment.
+Return your response ONLY as valid JSON (no markdown fences, no raw text) matching this schema:
+{
+  "clinicalThought": "A 1-2 sentence clinical reasoning thought about the patient presentation",
+  "extractedSymptoms": ["symptom 1", "symptom 2"],
+  "duration": "duration if mentioned or 'Not specified'",
+  "severity": "Mild | Moderate | Severe | Unspecified",
+  "riskLevel": "LOW | MODERATE | EMERGENCY",
+  "knowledge": [
+    {
+      "displayName": "Condition / Cluster Name",
+      "emoji": "🩺",
+      "commonCauses": ["Cause 1 with natural explanation", "Cause 2", "Cause 3"],
+      "selfCare": ["Evidence-based action 1", "Action 2", "Action 3"],
+      "doctorQuestions": ["Specific question for doctor 1", "Question 2"],
+      "seekCareIf": ["Escalation trigger 1", "Trigger 2"]
+    }
+  ],
+  "missingQuestions": ["Clarifying question if key details like duration are missing"]
+}`;
+
+  const userPrompt = `[SESSION CONTEXT]
+${pastContext || 'New consultation session'}
+
+[PATIENT SYMPTOM INTAKE]
+"${rawInput}"
+
+[GROUNDED MEDICAL KNOWLEDGE BASE RETRIEVAL]
+${retrievedFacts || 'No exact match in local KB. Provide general safe evidence-based guidance.'}
+
+Synthesize the patient's presentation into the requested JSON schema.`;
+
+  const payload = {
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: systemInstruction + '\n\n' + userPrompt }]
+      }
+    ],
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 1200,
+      responseMimeType: 'application/json'
+    }
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API HTTP ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const textOutput = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!textOutput) throw new Error('Empty response from Gemini API');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(textOutput);
+  } catch (e) {
+    // Strip possible markdown code block
+    const cleaned = textOutput.replace(/```json/g, '').replace(/```/g, '').trim();
+    parsed = JSON.parse(cleaned);
+  }
+
+  // Update ReAct Trace with Gemini thought
+  const reactTrace = [
+    {
+      type: 'thought',
+      text: parsed.clinicalThought || `Synthesized presentation with Gemini ${model}. Extracted: [${(parsed.extractedSymptoms || []).join(', ')}].`
+    },
+    {
+      type: 'action',
+      tool: 'suggest_next_step',
+      input: rawInput,
+      output: 'SAFE_PROCEED: No acute emergency red flags. Gemini live synthesis authorized.'
+    },
+    {
+      type: 'action',
+      tool: 'lookup_info',
+      input: (parsed.extractedSymptoms || ['symptoms'])[0],
+      output: `Grounded fact base retrieved. Synthesized with ${model}.`
+    },
+    {
+      type: 'thought',
+      text: `Live AI synthesis complete. Compiled tabbed clinical dossier.`
+    }
+  ];
+
+  return {
+    type: 'normal',
+    intake: {
+      symptoms: parsed.extractedSymptoms || localResult.intake.symptoms,
+      rememberedSymptoms: localResult.intake.rememberedSymptoms,
+      duration: parsed.duration || localResult.intake.duration,
+      severity: parsed.severity || localResult.intake.severity,
+      ageGroup: localResult.intake.ageGroup,
+      existingConditions: localResult.intake.existingConditions,
+      riskLevel: parsed.riskLevel || localResult.intake.riskLevel
+    },
+    knowledge: (parsed.knowledge && parsed.knowledge.length > 0)
+      ? parsed.knowledge
+      : localResult.knowledge,
+    missingQuestions: parsed.missingQuestions || localResult.missingQuestions,
+    reactTrace,
+    engine: `gemini-${model}`,
     timestamp: new Date().toISOString()
   };
 }

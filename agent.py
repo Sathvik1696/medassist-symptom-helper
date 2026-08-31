@@ -13,6 +13,7 @@ Can be run as an interactive CLI, imported as a module, or executed with --test.
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional
+import os
 import re
 import sys
 
@@ -401,6 +402,17 @@ class ReActAgent:
         # ── STAGE 4: STRUCTURED OUTPUT GENERATION ──
         trace.append("Thought: Assembling grounded, non-diagnostic clinical guidance.")
 
+        # If GEMINI_API_KEY is available in environment, use Gemini for live synthesis
+        gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+        if gemini_key:
+            try:
+                gemini_output = self._call_gemini(user_input, symptoms, duration, kb_results, gemini_key)
+                if gemini_output:
+                    self.chat_history.append(user_input)
+                    return gemini_output
+            except Exception as e:
+                pass  # Fallback gracefully to deterministic knowledge base
+
         symptoms_summary = ", ".join(s.capitalize() for s in symptoms) if symptoms else "Unspecified symptoms"
         risk_level = "MODERATE" if "severe" in user_input.lower() or len(symptoms) >= 3 else "LOW"
 
@@ -440,6 +452,42 @@ class ReActAgent:
         self.chat_history.append(user_input)
 
         return "\n".join(lines)
+
+    def _call_gemini(self, user_input: str, symptoms: List[str], duration: str, kb_results: List[Tuple[str, Dict]], api_key: str) -> Optional[str]:
+        """Calls Google Gemini API via standard urllib to synthesize natural clinical response."""
+        import json
+        import urllib.request
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        kb_text = "\n".join([f"{data['display_name']}: Causes: {'; '.join(data['common_causes'])}; Care: {'; '.join(data['self_care'])}" for _, data in kb_results])
+        
+        prompt = (
+            "You are MedAssist, a precision clinical decision support concierge. "
+            "Grounded strictly in the retrieved facts below, provide a helpful, empathetic, non-diagnostic response. "
+            f"User input: '{user_input}'. "
+            f"Extracted symptoms: {symptoms}, duration: {duration}. "
+            f"Medical facts: {kb_text}. "
+            "Format your response with sections: "
+            "### 🩺 Symptom Intake Summary\n"
+            "### 💡 Potential Context & Educational Information\n"
+            "### 🏠 Safe At-Home Care Guidelines\n"
+            f"### ⚠️ Mandatory Medical Disclaimer\n{MANDATORY_DISCLAIMER}"
+        )
+
+        data = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.3, "maxOutputTokens": 1000}
+        }
+
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(data).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+
+        with urllib.request.urlopen(req, timeout=8) as response:
+            res_json = json.loads(response.read().decode("utf-8"))
+            return res_json["candidates"][0]["content"]["parts"][0]["text"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

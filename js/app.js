@@ -11,8 +11,15 @@
  * - Export & Clipboard Doctor Summary Generator
  */
 
-import { executePipeline } from './pipeline.js';
+import { executePipeline, executePipelineAsync } from './pipeline.js';
 import { renderResult, renderPipelineRunner } from './renderer.js';
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * LIVE AI CONFIGURATION (GOOGLE GEMINI API)
+ * ───────────────────────────────────────────────────────────────────────── */
+let geminiApiKey = localStorage.getItem('medassist_gemini_api_key') || '';
+let geminiModel = localStorage.getItem('medassist_gemini_model') || 'gemini-1.5-flash';
+let isLiveAiEnabled = localStorage.getItem('medassist_live_ai_enabled') !== 'false';
 
 /* ─────────────────────────────────────────────────────────────────────────
  * ANATOMICAL SYSTEM CLUSTERS & CAPSULE VAULT
@@ -171,6 +178,18 @@ const voiceInputBtn = document.getElementById('voice-input-btn');
 const luxuryToast = document.getElementById('luxury-toast');
 const cursorSpotlight = document.getElementById('cursor-spotlight');
 
+// AI Settings Modal References
+const aiSettingsBtn = document.getElementById('ai-settings-btn');
+const aiSettingsBackdrop = document.getElementById('ai-settings-backdrop');
+const aiSettingsClose = document.getElementById('ai-settings-close');
+const liveAiToggle = document.getElementById('live-ai-toggle');
+const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
+const geminiModelSelect = document.getElementById('gemini-model-select');
+const saveAiSettingsBtn = document.getElementById('save-ai-settings-btn');
+const testAiConnectionBtn = document.getElementById('test-ai-connection-btn');
+const toggleKeyVisibilityBtn = document.getElementById('toggle-key-visibility');
+const aiEngineStatusLabel = document.getElementById('ai-engine-status-label');
+
 /* ─────────────────────────────────────────────────────────────────────────
  * INITIALIZATION
  * ───────────────────────────────────────────────────────────────────────── */
@@ -178,6 +197,7 @@ function init() {
   loadHistory();
   initCursorSpotlight();
   initVoiceRecognition();
+  initAiSettingsModal();
 
   // Event Listeners
   sendBtn.addEventListener('click', handleSend);
@@ -227,7 +247,120 @@ function init() {
   }
 
   updateMemoryCounter();
+  updateAiEngineStatusLabel();
   userInput.focus();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * AI SETTINGS MODAL CONTROLLER
+ * ───────────────────────────────────────────────────────────────────────── */
+function initAiSettingsModal() {
+  if (!aiSettingsBtn || !aiSettingsBackdrop) return;
+
+  // Populate inputs with current stored state
+  if (geminiApiKeyInput) geminiApiKeyInput.value = geminiApiKey;
+  if (geminiModelSelect) geminiModelSelect.value = geminiModel;
+  if (liveAiToggle) liveAiToggle.checked = isLiveAiEnabled;
+
+  // Open Modal
+  aiSettingsBtn.addEventListener('click', () => {
+    playAcousticHaptic('click');
+    if (geminiApiKeyInput) geminiApiKeyInput.value = geminiApiKey;
+    if (geminiModelSelect) geminiModelSelect.value = geminiModel;
+    if (liveAiToggle) liveAiToggle.checked = isLiveAiEnabled;
+    aiSettingsBackdrop.classList.add('open');
+  });
+
+  // Close Modal
+  if (aiSettingsClose) {
+    aiSettingsClose.addEventListener('click', () => {
+      playAcousticHaptic('click');
+      aiSettingsBackdrop.classList.remove('open');
+    });
+  }
+
+  aiSettingsBackdrop.addEventListener('click', (e) => {
+    if (e.target === aiSettingsBackdrop) {
+      aiSettingsBackdrop.classList.remove('open');
+    }
+  });
+
+  // Toggle Key Visibility
+  if (toggleKeyVisibilityBtn && geminiApiKeyInput) {
+    toggleKeyVisibilityBtn.addEventListener('click', () => {
+      const isPass = geminiApiKeyInput.type === 'password';
+      geminiApiKeyInput.type = isPass ? 'text' : 'password';
+      toggleKeyVisibilityBtn.textContent = isPass ? '🙈' : '👁️';
+    });
+  }
+
+  // Save Settings
+  if (saveAiSettingsBtn) {
+    saveAiSettingsBtn.addEventListener('click', () => {
+      playAcousticHaptic('complete');
+      geminiApiKey = (geminiApiKeyInput?.value || '').trim();
+      geminiModel = geminiModelSelect?.value || 'gemini-1.5-flash';
+      isLiveAiEnabled = liveAiToggle ? liveAiToggle.checked : true;
+
+      localStorage.setItem('medassist_gemini_api_key', geminiApiKey);
+      localStorage.setItem('medassist_gemini_model', geminiModel);
+      localStorage.setItem('medassist_live_ai_enabled', isLiveAiEnabled ? 'true' : 'false');
+
+      aiSettingsBackdrop.classList.remove('open');
+      updateAiEngineStatusLabel();
+      showToast(geminiApiKey ? `⚡ Live Gemini AI Active (${geminiModel})` : 'Local ReAct Engine Active');
+    });
+  }
+
+  // Test Connection
+  if (testAiConnectionBtn) {
+    testAiConnectionBtn.addEventListener('click', async () => {
+      const testKey = (geminiApiKeyInput?.value || '').trim();
+      if (!testKey) {
+        showToast('⚠️ Please enter an API key to test');
+        return;
+      }
+
+      testAiConnectionBtn.textContent = 'Testing...';
+      testAiConnectionBtn.disabled = true;
+
+      try {
+        const testModel = geminiModelSelect?.value || 'gemini-1.5-flash';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(testModel)}:generateContent?key=${encodeURIComponent(testKey)}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: 'Respond with OK' }] }]
+          })
+        });
+
+        if (res.ok) {
+          showToast('✅ Gemini API Key Connected Successfully!');
+          playAcousticHaptic('complete');
+        } else {
+          const err = await res.text();
+          showToast(`❌ API Error: HTTP ${res.status}`);
+        }
+      } catch (e) {
+        showToast('❌ Network/Connection Failed');
+      } finally {
+        testAiConnectionBtn.textContent = 'Test Key';
+        testAiConnectionBtn.disabled = false;
+      }
+    });
+  }
+}
+
+function updateAiEngineStatusLabel() {
+  if (!aiEngineStatusLabel || !aiSettingsBtn) return;
+  if (isLiveAiEnabled && geminiApiKey) {
+    aiEngineStatusLabel.textContent = `⚡ ${geminiModel.replace('gemini-', 'Gemini ')}`;
+    aiSettingsBtn.classList.add('active');
+  } else {
+    aiEngineStatusLabel.textContent = '⚡ AI Engine';
+    aiSettingsBtn.classList.remove('active');
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -701,9 +834,13 @@ async function processSymptoms(text) {
   updateRunnerStage(runnerEl, 3);
   await delay(300);
 
-  // Execute pipeline with session memory (past user messages)
+  // Execute pipeline with session memory (past user messages) & Live Gemini AI config
   const chatHistory = conversationHistory.filter(m => m.role === 'user');
-  const result = executePipeline(text, chatHistory);
+  const result = await executePipelineAsync(text, chatHistory, {
+    apiKey: geminiApiKey,
+    model: geminiModel,
+    isLiveAiEnabled: isLiveAiEnabled
+  });
 
   runnerEl.remove();
 
