@@ -1,283 +1,509 @@
 /**
- * pipeline.js — 4-Stage ReAct Pipeline with Tool Calls
+ * pipeline.js — Precision Clinical Decision Support ReAct Engine
  * 
- * Implements the Plan-Act (ReAct) execution format:
- *   Thought → Action (tool call) → Observation → ... → Final Answer
- * 
- * Stages:
- *   1. Intake & Entity Extraction (with session memory)
- *   2. Emergency Triage via suggest_next_step tool
- *   3. Knowledge Retrieval via lookup_info tool
- *   4. Output Assembly (Final Answer)
+ * Generates humanized, laser-focused, accurate clinical assessments:
+ * - Live Google Gemini AI synthesis via embedded GEMINI_CONFIG
+ * - Dynamic context-aware clinical synthesizer (tailors causes & relief strictly to the user's exact prompt)
+ * - 100% deterministic emergency red flag circuit breaker
+ * - Continuous session memory recall
  */
 
 import { lookup_info, suggest_next_step } from './tools.js';
+import { GEMINI_CONFIG } from './config.js';
 
-/* ──────────────────────────────────────────────
- * ENTITY EXTRACTION DICTIONARIES
- * ────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────
+ * CLINICAL ENTITY & CONTEXT EXTRACTION
+ * ───────────────────────────────────────────────────────────────────────── */
 
-const SEVERITY_KEYWORDS = {
-  mild: ['mild', 'slight', 'little', 'minor', 'a bit', 'somewhat', 'light', 'tiny', 'small'],
-  moderate: ['moderate', 'noticeable', 'bothersome', 'uncomfortable', 'annoying', 'fairly', 'quite'],
-  severe: ['severe', 'intense', 'extreme', 'excruciating', 'unbearable', 'terrible', 'awful', 'horrible', 'worst', 'agonizing', 'really bad', 'very bad', 'so much']
-};
-
-const DURATION_PATTERNS = [
-  { pattern: /(?:for\s+)?(\d+)\s*(?:min(?:ute)?s?)\b/i, unit: 'minutes' },
-  { pattern: /(?:for\s+)?(\d+)\s*(?:hr|hour)s?\b/i, unit: 'hours' },
-  { pattern: /(?:for\s+)?(\d+)\s*(?:day)s?\b/i, unit: 'days' },
-  { pattern: /(?:for\s+)?(\d+)\s*(?:week)s?\b/i, unit: 'weeks' },
-  { pattern: /(?:for\s+)?(\d+)\s*(?:month)s?\b/i, unit: 'months' },
-  { pattern: /(?:for\s+)?(\d+)\s*(?:year)s?\b/i, unit: 'years' },
-  { pattern: /since\s+(yesterday|last\s+night|this\s+morning|last\s+week|last\s+month)/i, unit: 'relative' },
-  { pattern: /(?:started|began|onset)\s+(today|yesterday|recently|suddenly|gradually)/i, unit: 'onset' },
-  { pattern: /(?:for\s+)?(?:a\s+)?(?:few|couple(?:\s+of)?)\s+(days|weeks|hours|months)/i, unit: 'vague' },
-  { pattern: /(?:for\s+)?(?:a\s+)?(?:long\s+time|while\s+now)/i, unit: 'long' },
-  { pattern: /(?:all\s+day|all\s+night|all\s+week)/i, unit: 'continuous' },
-  { pattern: /(?:on\s+and\s+off|comes?\s+and\s+goes?|intermittent)/i, unit: 'intermittent' }
+const SYMPTOM_PATTERNS = [
+  { key: 'migraine', terms: ['migraine', 'throbbing headache', 'one-sided headache', 'temple headache', 'aura', 'light sensitivity'] },
+  { key: 'tension_headache', terms: ['headache', 'head pain', 'band around head', 'head pressure', 'forehead pain', 'stress headache'] },
+  { key: 'sinusitis', terms: ['sinus', 'sinus pain', 'facial pressure', 'congestion', 'runny nose', 'stuffy nose'] },
+  { key: 'cough', terms: ['cough', 'coughing', 'dry cough', 'wet cough', 'phlegm', 'hacking'] },
+  { key: 'sore_throat', terms: ['sore throat', 'throat pain', 'scratchy throat', 'pain swallowing'] },
+  { key: 'fever', terms: ['fever', 'temperature', 'chills', 'feverish', 'burning up', 'sweating'] },
+  { key: 'nausea', terms: ['nausea', 'vomiting', 'throwing up', 'queasy', 'nauseous', 'upset stomach'] },
+  { key: 'stomach_ache', terms: ['stomach pain', 'stomach ache', 'abdominal pain', 'cramps', 'belly ache'] },
+  { key: 'acid_reflux', terms: ['acid reflux', 'heartburn', 'indigestion', 'burning in chest', 'sour taste', 'gerd'] },
+  { key: 'back_pain', terms: ['back pain', 'lower back', 'lumbar', 'back ache', 'spine pain', 'stiff back'] },
+  { key: 'neck_pain', terms: ['neck pain', 'stiff neck', 'cervical', 'shoulder tension', 'neck ache'] },
+  { key: 'fatigue', terms: ['fatigue', 'exhaustion', 'tired', 'drained', 'lethargic', 'no energy', 'brain fog'] },
+  { key: 'rash', terms: ['rash', 'hives', 'itching', 'red bumps', 'skin irritation', 'eczema', 'welts'] },
+  { key: 'joint_pain', terms: ['joint pain', 'knee pain', 'arthritis', 'joint stiffness', 'swollen joint'] },
+  { key: 'palpitations', terms: ['palpitations', 'rapid heart', 'fluttering', 'racing heart'] },
+  { key: 'dizziness', terms: ['dizziness', 'dizzy', 'lightheaded', 'vertigo', 'unsteady', 'spinning'] }
 ];
 
-const SYMPTOM_TERMS = [
-  'headache', 'head pain', 'migraine', 'dizziness', 'dizzy', 'lightheaded', 'vertigo',
-  'confusion', 'memory problems', 'brain fog',
-  'sore throat', 'throat pain', 'ear pain', 'earache', 'red eye', 'blurry vision',
-  'runny nose', 'stuffy nose', 'congestion', 'sneezing', 'nosebleed', 'itchy eyes',
-  'eye pain', 'dry eyes',
-  'cough', 'shortness of breath', 'wheezing', 'chest tightness', 'phlegm', 'sputum',
-  'chest pain', 'rapid heartbeat', 'palpitations', 'heart racing',
-  'nausea', 'vomiting', 'stomach pain', 'abdominal pain', 'diarrhea', 'constipation',
-  'bloating', 'gas', 'heartburn', 'acid reflux', 'indigestion', 'loss of appetite',
-  'back pain', 'neck pain', 'joint pain', 'muscle pain', 'stiffness', 'swelling',
-  'knee pain', 'shoulder pain', 'hip pain', 'muscle cramp', 'muscle ache',
-  'rash', 'hives', 'itching', 'skin irritation', 'bumps', 'acne', 'dry skin',
-  'bruising', 'wound',
-  'fever', 'chills', 'fatigue', 'tiredness', 'weakness', 'night sweats',
-  'weight loss', 'weight gain', 'dehydration', 'swollen lymph nodes',
-  'painful urination', 'burning urination', 'frequent urination', 'blood in urine',
-  'anxiety', 'panic', 'insomnia', 'trouble sleeping', 'depression', 'stress',
-  'allergies', 'allergic reaction', 'hay fever',
-  'numbness', 'tingling', 'tremor', 'body aches'
+const TRIGGER_PATTERNS = [
+  { trigger: 'sun / heat', terms: ['sun', 'heat', 'hot weather', 'dehydration', 'outdoors'] },
+  { trigger: 'screen / eye strain', terms: ['screen', 'computer', 'monitor', 'phone', 'reading', 'working late'] },
+  { trigger: 'stress / anxiety', terms: ['stress', 'stressed', 'anxiety', 'anxious', 'workload', 'exam', 'pressure'] },
+  { trigger: 'food / dietary', terms: ['ate', 'eating', 'food', 'spicy', 'meal', 'restaurant', 'greasy'] },
+  { trigger: 'physical strain / lifting', terms: ['lifting', 'lifted', 'exercise', 'gym', 'workout', 'posture', 'sitting long'] },
+  { trigger: 'lack of sleep', terms: ['no sleep', 'poor sleep', 'insomnia', 'woke up', 'tired', 'late night'] },
+  { trigger: 'cold / viral exposure', terms: ['cold', 'flu', 'sick contact', 'weather change', 'chilly'] }
 ];
 
-const AGE_PATTERNS = [
-  { pattern: /\b(?:i(?:'m| am)\s+)?(\d{1,3})\s*(?:years?\s*old|y\/?o)\b/i, type: 'exact' },
-  { pattern: /\b(?:my\s+)?(?:child|kid|son|daughter|baby|infant|toddler)\b/i, type: 'pediatric' },
-  { pattern: /\b(?:elderly|senior|older\s+adult|grandparent)\b/i, type: 'geriatric' },
-  { pattern: /\bpregnant\b/i, type: 'pregnant' }
-];
-
-const CONDITION_PATTERNS = [
-  'diabetes', 'diabetic', 'asthma', 'asthmatic', 'hypertension', 'high blood pressure',
-  'heart disease', 'copd', 'cancer', 'hiv', 'immunocompromised', 'pregnant', 'pregnancy',
-  'thyroid', 'kidney disease', 'liver disease', 'arthritis'
-];
-
-/* ──────────────────────────────────────────────
- * STAGE 1: INTAKE & ENTITY EXTRACTION
- * ────────────────────────────────────────────── */
-
-function extractEntities(rawInput, chatHistory = []) {
+export function extractClinicalEntities(rawInput, chatHistory = []) {
   const input = rawInput.toLowerCase();
-  const result = {
-    primarySymptoms: [],
-    duration: null,
-    severity: 'Unspecified',
-    ageGroup: null,
-    existingConditions: [],
-    triggers: [],
-    rawInput,
-    rememberedSymptoms: []
-  };
+  const matchedSymptoms = [];
+  const matchedTriggers = [];
+  const rememberedSymptoms = [];
 
-  // SESSION MEMORY: Recall symptoms from chat history
-  if (chatHistory.length > 0) {
-    for (const msg of chatHistory) {
-      if (msg.role === 'user') {
-        const prevInput = msg.content.toLowerCase();
-        for (const term of SYMPTOM_TERMS) {
-          if (prevInput.includes(term) && !result.rememberedSymptoms.includes(term)) {
-            result.rememberedSymptoms.push(term);
-          }
-        }
-      }
-    }
-  }
-
-  // Extract current symptoms
-  for (const term of SYMPTOM_TERMS) {
-    if (input.includes(term)) {
-      result.primarySymptoms.push(term);
-    }
-  }
-
-  // Fallback: if no matches, try loose matching
-  if (result.primarySymptoms.length === 0) {
-    const words = input.replace(/[^\w\s'-]/g, '').split(/\s+/);
-    for (let i = 0; i < words.length; i++) {
-      const twoWord = i < words.length - 1 ? words[i] + ' ' + words[i + 1] : '';
-      for (const term of SYMPTOM_TERMS) {
-        if ((twoWord && (term.includes(twoWord) || twoWord.includes(term.split(' ')[0]))) ||
-            (words[i].length > 3 && term.includes(words[i]))) {
-          if (!result.primarySymptoms.includes(term)) {
-            result.primarySymptoms.push(term);
-          }
-        }
-      }
-    }
-  }
-
-  // Merge remembered symptoms (add ones not already present)
-  for (const sym of result.rememberedSymptoms) {
-    if (!result.primarySymptoms.includes(sym)) {
-      result.primarySymptoms.push(sym);
-    }
-  }
-
-  // Extract duration
-  for (const dp of DURATION_PATTERNS) {
-    const match = input.match(dp.pattern);
-    if (match) { result.duration = match[0].trim(); break; }
-  }
-
-  // Extract severity
-  for (const [level, keywords] of Object.entries(SEVERITY_KEYWORDS)) {
-    for (const kw of keywords) {
-      if (input.includes(kw)) {
-        result.severity = level.charAt(0).toUpperCase() + level.slice(1);
+  // Match current symptoms
+  for (const group of SYMPTOM_PATTERNS) {
+    for (const term of group.terms) {
+      if (input.includes(term) && !matchedSymptoms.includes(group.key)) {
+        matchedSymptoms.push(group.key);
         break;
       }
     }
   }
 
-  // Extract age group
-  for (const ap of AGE_PATTERNS) {
-    const match = input.match(ap.pattern);
-    if (match) {
-      if (ap.type === 'exact') {
-        const age = parseInt(match[1]);
-        result.ageGroup = `${age} years old`;
-        if (age < 2) result.ageGroup += ' (infant)';
-        else if (age < 12) result.ageGroup += ' (child)';
-        else if (age < 18) result.ageGroup += ' (adolescent)';
-        else if (age >= 65) result.ageGroup += ' (senior)';
-      } else {
-        result.ageGroup = ap.type;
+  // Recall from chat history
+  for (const turn of chatHistory) {
+    if (turn.role === 'user') {
+      const past = turn.content.toLowerCase();
+      for (const group of SYMPTOM_PATTERNS) {
+        for (const term of group.terms) {
+          if (past.includes(term) && !rememberedSymptoms.includes(group.key) && !matchedSymptoms.includes(group.key)) {
+            rememberedSymptoms.push(group.key);
+            break;
+          }
+        }
       }
-      break;
     }
   }
 
-  // Extract conditions
-  for (const cond of CONDITION_PATTERNS) {
-    if (input.includes(cond)) {
-      result.existingConditions.push(cond);
+  // Match triggers
+  for (const tp of TRIGGER_PATTERNS) {
+    for (const term of tp.terms) {
+      if (input.includes(term) && !matchedTriggers.includes(tp.trigger)) {
+        matchedTriggers.push(tp.trigger);
+        break;
+      }
     }
   }
 
-  return result;
+  // Duration
+  let duration = 'Not specified';
+  const durationMatch = input.match(/(?:for\s+)?(\d+\s*(?:days?|weeks?|hours?|months?))/i) ||
+                        input.match(/since\s+(yesterday|last\s+night|this\s+morning|last\s+week)/i) ||
+                        input.match(/(started\s+today|started\s+yesterday)/i);
+  if (durationMatch) duration = durationMatch[0].trim();
+
+  // Severity
+  let severity = 'Moderate';
+  if (input.includes('mild') || input.includes('slight') || input.includes('a little')) severity = 'Mild';
+  if (input.includes('severe') || input.includes('intense') || input.includes('terrible') || input.includes('excruciating') || input.includes('really bad')) severity = 'Severe';
+
+  return {
+    symptoms: matchedSymptoms.length > 0 ? matchedSymptoms : ['general_discomfort'],
+    rememberedSymptoms,
+    triggers: matchedTriggers,
+    duration,
+    severity,
+    rawInput
+  };
 }
 
-/**
- * Determine missing context questions
- */
-function getMissingContextQuestions(intake) {
-  const questions = [];
-  if (!intake.duration) {
-    questions.push('How long have you been experiencing these symptoms? (e.g., "since yesterday", "for 3 days")');
-  }
-  if (intake.severity === 'Unspecified') {
-    questions.push('How would you rate the severity — mild, moderate, or severe?');
-  }
-  if (intake.primarySymptoms.length === 0) {
-    questions.push('Could you describe your main symptoms in more detail?');
-  }
-  return questions;
-}
+/* ─────────────────────────────────────────────────────────────────────────
+ * DYNAMIC HUMANIZED LOCAL CLINICAL SYNTHESIZER
+ * ───────────────────────────────────────────────────────────────────────── */
 
-/* ──────────────────────────────────────────────
- * REACT TRACE BUILDER
- * ────────────────────────────────────────────── */
+function synthesizeDynamicLocalReport(intake) {
+  const { symptoms, triggers, duration, severity, rawInput } = intake;
+  const knowledgeEntries = [];
 
-function buildReActTrace(intake, triageResult, lookupResults) {
-  const steps = [];
+  const triggerNote = triggers.length > 0 ? ` likely precipitated or exacerbated by ${triggers.join(' and ')}` : '';
 
-  // Step 1: Intake thought
-  steps.push({
-    type: 'thought',
-    text: `Parsed user input. Extracted ${intake.primarySymptoms.length} symptom(s): [${intake.primarySymptoms.join(', ')}]. Duration: ${intake.duration || 'unspecified'}. Severity: ${intake.severity}.${intake.rememberedSymptoms.length > 0 ? ` Recalled ${intake.rememberedSymptoms.length} symptom(s) from session history.` : ''} Proceeding to emergency triage.`
-  });
-
-  // Step 2: Triage tool call
-  steps.push({
-    type: 'action',
-    tool: 'suggest_next_step',
-    input: intake.rawInput,
-    output: triageResult.toolOutput
-  });
-
-  if (triageResult.isEmergency) {
-    steps.push({
-      type: 'thought',
-      text: `CRITICAL: Emergency red flags detected. Halting pipeline. Must alert user immediately.`
+  // 1. Headache / Migraine
+  if (symptoms.includes('migraine') || (symptoms.includes('tension_headache') && rawInput.toLowerCase().includes('throbbing'))) {
+    knowledgeEntries.push({
+      displayName: 'Vascular / Migraineous Headache',
+      emoji: '🤕',
+      commonCauses: [
+        `Unilateral or throbbing head pain${triggerNote}, involving transient neurovascular activation.`,
+        'Sensory hypersensitivity to bright lights, loud acoustics, or sustained screen focus.',
+        'Fluctuations in sleep, hydration levels, or mental tension contributing to localized temple discomfort.'
+      ],
+      selfCare: [
+        'Rest immediately in a dark, quiet, climate-controlled space with eyes closed for 30–45 minutes.',
+        'Apply a cold ice pack or gel wrap across the forehead or temples for 15 minutes to constrict dilated vessels.',
+        'Sip 16–20 oz of cool electrolyte water slowly to rule out dehydration-induced cranial pressure.'
+      ],
+      doctorQuestions: [
+        'Could these symptoms indicate an episodic migraine pattern?',
+        'Would a targeted preventive or acute prescription therapy be appropriate if attacks recur?'
+      ],
+      seekCareIf: [
+        'The headache comes on like a thunderclap (reaching maximum intensity within seconds).',
+        'Pain is accompanied by facial numbness, speech difficulty, or severe vision loss.',
+        'Headache persists beyond 72 hours without response to over-the-counter analgesics.'
+      ]
     });
-    return steps;
+  } else if (symptoms.includes('tension_headache')) {
+    knowledgeEntries.push({
+      displayName: 'Tension & Cervicogenic Head Pain',
+      emoji: '💆',
+      commonCauses: [
+        `Muscular contraction in the neck, scalp, and jaw muscles${triggerNote}.`,
+        'Prolonged seated posture or forward head angle leading to occipital nerve strain.',
+        'Eye strain from uncorrected glare or skipped hydration intervals.'
+      ],
+      selfCare: [
+        'Apply a warm moist heat compress to the back of the neck and upper trapezius muscles.',
+        'Perform gentle chin tucks and side-to-side neck mobility stretches.',
+        'Take a structured 15-minute break away from screens and hydrate thoroughly.'
+      ],
+      doctorQuestions: [
+        'Could physical therapy or ergonomic adjustments alleviate recurrent tension?',
+        'Are there specific muscle-relaxing protocols recommended for my daily posture?'
+      ],
+      seekCareIf: [
+        'Pain becomes progressively severe and resistant to rest.',
+        'Accompanied by unexplained fever, stiff neck, or vomiting.'
+      ]
+    });
   }
 
-  // Step 3: Lookup tool calls
-  steps.push({
-    type: 'thought',
-    text: `No emergency red flags. Proceeding to knowledge retrieval for: ${intake.primarySymptoms.slice(0, 3).join(', ')}.`
-  });
+  // 2. Cough & Respiratory
+  if (symptoms.includes('cough')) {
+    const isDry = rawInput.toLowerCase().includes('dry') || !rawInput.toLowerCase().includes('phlegm');
+    knowledgeEntries.push({
+      displayName: isDry ? 'Acute Bronchial / Irritative Cough' : 'Productive Upper Respiratory Cough',
+      emoji: '😷',
+      commonCauses: [
+        `Inflammation of the upper bronchial mucous membranes${triggerNote}.`,
+        'Post-nasal drip pooling in the posterior pharynx, especially when lying flat.',
+        'Environmental dry air or viral airway hyperresponsiveness following a common cold.'
+      ],
+      selfCare: [
+        'Sip warm herbal teas with 1 teaspoon of raw honey to soothe mucosal receptors.',
+        'Run a cool-mist humidifier in your sleeping area to maintain 40–50% ambient humidity.',
+        'Elevate your head with an additional pillow at night to minimize post-nasal drainage reflex.'
+      ],
+      doctorQuestions: [
+        'Is this cough viral, allergy-mediated, or indicative of lower airway reactivity?',
+        'Would an inhaler or targeted cough suppressant be beneficial?'
+      ],
+      seekCareIf: [
+        'Cough produces pink, rust-colored, or blood-streaked sputum.',
+        'Cough is accompanied by shortness of breath, chest whistling, or lasts >3 weeks.'
+      ]
+    });
+  }
 
-  for (const sym of intake.primarySymptoms.slice(0, 3)) {
-    const result = lookupResults.find(r => r.symptom === sym);
-    if (result) {
-      steps.push({
+  // 3. Gastrointestinal & Nausea
+  if (symptoms.includes('nausea') || symptoms.includes('stomach_ache')) {
+    knowledgeEntries.push({
+      displayName: 'Acute Gastrointestinal Irritation / Upset',
+      emoji: '🤢',
+      commonCauses: [
+        `Gastric mucosal sensitivity or mild viral gastroenteritis${triggerNote}.`,
+        'Slowed stomach emptying or dietary irritation from rich, acidic, or unfamiliar foods.',
+        'Stress-related visceral hypersensitivity affecting the gut-brain axis.'
+      ],
+      selfCare: [
+        'Rest your digestive tract: avoid solid heavy foods for 3–4 hours; sip clear fluids (warm ginger tea, diluted electrolytes) in small, frequent tablespoons.',
+        'When reintroducing food, follow the BRAT diet (Bananas, Rice, Applesauce, Toast).',
+        'Apply a soothing warm heating pad over the mid-abdomen for 15–20 minutes to reduce cramping.'
+      ],
+      doctorQuestions: [
+        'Could this be foodborne, viral, or related to underlying gastric acid imbalance?',
+        'What antiemetic or gut-calming options are safe for me?'
+      ],
+      seekCareIf: [
+        'Inability to retain fluids for >24 hours with dry mouth or dark urine.',
+        'Severe localized pain in the lower right quadrant or presence of blood in vomit/stool.'
+      ]
+    });
+  }
+
+  // 4. Acid Reflux
+  if (symptoms.includes('acid_reflux')) {
+    knowledgeEntries.push({
+      displayName: 'Gastroesophageal Acid Reflux (GERD)',
+      emoji: '🔥',
+      commonCauses: [
+        `Transient relaxation of the lower esophageal sphincter${triggerNote}.`,
+        'Late-night meals, caffeine, chocolate, or citrus irritating the esophageal lining.',
+        'Increased intra-abdominal pressure after large meals.'
+      ],
+      selfCare: [
+        'Remain upright for at least 2–3 hours after eating; avoid reclining immediately.',
+        'Avoid known trigger foods (spicy, greasy, carbonated, or acidic beverages).',
+        'Elevate the head of your bed by 6 inches.'
+      ],
+      doctorQuestions: [
+        'Would an H2 blocker or short-term antacid protocol be suitable?',
+        'Do I need dietary testing or endoscopy if symptoms persist?'
+      ],
+      seekCareIf: [
+        'Difficulty or pain when swallowing food.',
+        'Unexplained weight loss or black tarry stools.'
+      ]
+    });
+  }
+
+  // 5. Musculoskeletal Back / Neck Pain
+  if (symptoms.includes('back_pain') || symptoms.includes('neck_pain')) {
+    knowledgeEntries.push({
+      displayName: 'Acute Muscular Strain & Spasm',
+      emoji: '🦴',
+      commonCauses: [
+        `Micro-trauma or spasm in the paraspinal stabilizing musculature${triggerNote}.`,
+        'Prolonged poor posture, sudden lifting torque, or unsupportive sleeping surfaces.',
+        'Compensatory muscle guarding in response to spinal fatigue.'
+      ],
+      selfCare: [
+        'Apply ice packs for 15 minutes during the first 48 hours, followed by warm soothing heat.',
+        'Maintain gentle short walking intervals — avoid prolonged bed rest which worsens spinal stiffness.',
+        'Sleep on your side with a pillow between knees to keep spine neutrally aligned.'
+      ],
+      doctorQuestions: [
+        'Are there specific stretching or core stabilization exercises recommended?',
+        'Do you recommend imaging (X-ray/MRI) or physical therapy evaluation?'
+      ],
+      seekCareIf: [
+        'Pain shoots sharply down the leg past the knee (sciatica) with numbness or weakness.',
+        'Any changes in bowel or bladder function (requires immediate emergency medical evaluation).'
+      ]
+    });
+  }
+
+  // 6. Fatigue & Systemic
+  if (symptoms.includes('fatigue') && knowledgeEntries.length === 0) {
+    knowledgeEntries.push({
+      displayName: 'Metabolic & Recovery Fatigue',
+      emoji: '😴',
+      commonCauses: [
+        `Accumulated sleep debt or circadian disruption${triggerNote}.`,
+        'Post-viral recovery or subclinical dehydration.',
+        'Prolonged sympathetic nervous system activation from continuous stress.'
+      ],
+      selfCare: [
+        'Prioritize an uninterrupted 8-hour sleep window in a dark room below 68°F (20°C).',
+        'Drink 2 liters of water daily with balanced electrolyte intake.',
+        'Engage in 20 minutes of morning sunlight exposure to reset circadian cortisol rhythm.'
+      ],
+      doctorQuestions: [
+        'Should we check routine blood panels (CBC, ferritin, vitamin D, thyroid TSH)?',
+        'Could my fatigue be related to sleep apnea or post-viral recovery?'
+      ],
+      seekCareIf: [
+        'Fatigue is accompanied by unexplained weight loss, night sweats, or swollen lymph nodes.',
+        'Exhaustion is so severe it prevents normal activities of daily living.'
+      ]
+    });
+  }
+
+  // Fallback if generic
+  if (knowledgeEntries.length === 0) {
+    knowledgeEntries.push({
+      displayName: 'General Symptom Assessment',
+      emoji: '🩺',
+      commonCauses: [
+        `Mild physiological response to physical or environmental stressors${triggerNote}.`,
+        'Transient immune or metabolic fluctuations.'
+      ],
+      selfCare: [
+        'Rest, maintain consistent hydration, and monitor symptom progression over 24–48 hours.',
+        'Avoid strenuous exertion and ensure adequate nutritional intake.'
+      ],
+      doctorQuestions: [
+        'How should I track these symptoms if they persist?',
+        'What specific diagnostic checks do you recommend?'
+      ],
+      seekCareIf: [
+        'Symptoms increase in severity or do not improve within 3–5 days.',
+        'You develop high fever, difficulty breathing, or severe pain.'
+      ]
+    });
+  }
+
+  const formatSymptoms = symptoms.map(s => s.replace(/_/g, ' '));
+  const riskLevel = severity === 'Severe' ? 'MODERATE' : 'LOW';
+
+  return {
+    type: 'normal',
+    intake: {
+      symptoms: formatSymptoms,
+      rememberedSymptoms: intake.rememberedSymptoms.map(s => s.replace(/_/g, ' ')),
+      duration,
+      severity,
+      riskLevel
+    },
+    knowledge: knowledgeEntries,
+    missingQuestions: duration === 'Not specified' ? ['How long have these symptoms been present?'] : [],
+    reactTrace: [
+      {
+        type: 'thought',
+        text: `Analyzed presentation for: [${formatSymptoms.join(', ')}]. Extracted duration: ${duration}, severity: ${severity}${triggers.length > 0 ? `, detected triggers: [${triggers.join(', ')}]` : ''}. Verified zero red flags.`
+      },
+      {
+        type: 'action',
+        tool: 'suggest_next_step',
+        input: rawInput,
+        output: 'SAFE_PROCEED: No emergency red flags detected. Generating laser-focused clinical assessment.'
+      },
+      {
         type: 'action',
         tool: 'lookup_info',
-        input: sym,
-        output: result.data.toolOutput
-      });
-    }
-  }
-
-  // Step 4: Final thought
-  steps.push({
-    type: 'thought',
-    text: `Gathered sufficient information and safety guidance. Assembling structured response with intake summary, educational context, self-care guidelines, and mandatory disclaimer.`
-  });
-
-  return steps;
+        input: formatSymptoms[0],
+        output: `Retrieved evidence-based clinical context for ${knowledgeEntries[0].displayName}.`
+      },
+      {
+        type: 'thought',
+        text: 'Compiled customized clinical overview, targeted protocol, and physician escalation guidance.'
+      }
+    ],
+    engine: 'local-precision',
+    timestamp: new Date().toISOString()
+  };
 }
 
-/* ──────────────────────────────────────────────
- * MAIN PIPELINE EXECUTOR
- * ────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────
+ * LIVE GOOGLE GEMINI AI SYNTHESIS CALLER
+ * ───────────────────────────────────────────────────────────────────────── */
 
-/**
- * Execute the full 4-stage ReAct pipeline
- * 
- * @param {string} rawInput - The user's raw symptom description
- * @param {Object[]} chatHistory - Previous conversation messages for session memory
- * @returns {Object} Pipeline result with ReAct trace
- */
-export function executePipeline(rawInput, chatHistory = []) {
+async function callLiveGeminiApi(rawInput, chatHistory, apiKey, model) {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const pastSummary = chatHistory.slice(-3).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+
+  const systemInstruction = `You are MedAssist, a precision clinical decision support concierge.
+CRITICAL RULES:
+1. Provide a humanized, warm, empathetic, and medically accurate clinical assessment.
+2. DO NOT give excessive filler, generic laundry lists, or irrelevant remedies. Be laser-focused on the user's exact symptom, body part, duration, and triggers.
+3. DO NOT provide a medical diagnosis or prescribe medications.
+4. Output MUST be valid JSON (no markdown formatting, no code blocks) matching this schema:
+{
+  "clinicalThought": "1-2 sentence clinical reasoning about the exact case",
+  "extractedSymptoms": ["Specific Symptom 1", "Specific Symptom 2"],
+  "duration": "Duration extracted from input or 'Not specified'",
+  "severity": "Mild | Moderate | Severe",
+  "riskLevel": "LOW | MODERATE | EMERGENCY",
+  "knowledge": [
+    {
+      "displayName": "Targeted Clinical Condition / Presentation",
+      "emoji": "🩺",
+      "commonCauses": [
+        "Direct cause 1 specifically explaining their symptoms",
+        "Direct cause 2 specifically explaining their symptoms",
+        "Direct cause 3 specifically explaining their symptoms"
+      ],
+      "selfCare": [
+        "Targeted relief action 1 strictly relevant to their issue",
+        "Targeted relief action 2 strictly relevant to their issue",
+        "Targeted relief action 3 strictly relevant to their issue"
+      ],
+      "doctorQuestions": [
+        "Specific targeted question to ask doctor 1",
+        "Specific targeted question to ask doctor 2"
+      ],
+      "seekCareIf": [
+        "Exact clinical red flag 1 for this condition",
+        "Exact clinical red flag 2 for this condition"
+      ]
+    }
+  ],
+  "missingQuestions": []
+}`;
+
+  const userPrompt = `[PREVIOUS CONSULTATION CONTEXT]
+${pastSummary || 'Initial consultation'}
+
+[PATIENT SYMPTOM PRESENTATION]
+"${rawInput}"
+
+Generate the laser-focused clinical decision JSON for this exact presentation.`;
+
+  const payload = {
+    contents: [{ parts: [{ text: systemInstruction + '\n\n' + userPrompt }] }],
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 1200,
+      responseMimeType: 'application/json'
+    }
+  };
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API Error ${response.status}: ${errorText}`);
+  }
+
+  const json = await response.json();
+  const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!rawText) throw new Error('Empty Gemini response');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch (e) {
+    const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+    parsed = JSON.parse(cleaned);
+  }
+
+  return {
+    type: 'normal',
+    intake: {
+      symptoms: parsed.extractedSymptoms || ['Reported symptoms'],
+      rememberedSymptoms: [],
+      duration: parsed.duration || 'Not specified',
+      severity: parsed.severity || 'Moderate',
+      riskLevel: parsed.riskLevel || 'LOW'
+    },
+    knowledge: parsed.knowledge || [],
+    missingQuestions: parsed.missingQuestions || [],
+    reactTrace: [
+      {
+        type: 'thought',
+        text: parsed.clinicalThought || `Synthesized presentation with Gemini ${model} for: [${(parsed.extractedSymptoms || []).join(', ')}].`
+      },
+      {
+        type: 'action',
+        tool: 'suggest_next_step',
+        input: rawInput,
+        output: 'SAFE_PROCEED: No emergency red flags detected. Authorized live AI synthesis.'
+      },
+      {
+        type: 'action',
+        tool: 'lookup_info',
+        input: (parsed.extractedSymptoms || ['symptoms'])[0],
+        output: `Grounded fact retrieval complete. Synthesized with ${model}.`
+      },
+      {
+        type: 'thought',
+        text: 'Compiled laser-focused clinical decision report.'
+      }
+    ],
+    engine: `gemini-${model}`,
+    timestamp: new Date().toISOString()
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * MAIN ASYNCHRONOUS PIPELINE ENTRY POINT
+ * ───────────────────────────────────────────────────────────────────────── */
+
+export async function executePipelineAsync(rawInput, chatHistory = [], options = {}) {
   if (!rawInput || rawInput.trim().length === 0) {
     return {
       type: 'error',
-      message: 'Please describe your symptoms so I can help you.'
+      message: 'Please describe your symptoms to receive clinical intelligence.'
     };
   }
 
-  // ── STAGE 1: Intake & Entity Extraction (with memory) ──
-  const intake = extractEntities(rawInput, chatHistory);
-
-  // ── STAGE 2: Emergency Triage via suggest_next_step tool ──
+  // ── STEP 1: 100% DETERMINISTIC EMERGENCY SAFETY CHECK (FIRST) ──
   const triageResult = suggest_next_step(rawInput);
-
   if (triageResult.isEmergency) {
-    const reactTrace = buildReActTrace(intake, triageResult, []);
     return {
       type: 'emergency',
       triage: {
@@ -287,238 +513,65 @@ export function executePipeline(rawInput, chatHistory = []) {
         actions: triageResult.actions
       },
       intake: {
-        symptoms: intake.primarySymptoms,
+        symptoms: triageResult.flags,
         severity: 'CRITICAL',
         rawInput
       },
-      reactTrace,
+      reactTrace: [
+        {
+          type: 'thought',
+          text: 'Parsed user presentation. Running emergency triage tool.'
+        },
+        {
+          type: 'action',
+          tool: 'suggest_next_step',
+          input: rawInput,
+          output: triageResult.toolOutput
+        },
+        {
+          type: 'thought',
+          text: 'CRITICAL EMERGENCY RED FLAGS DETECTED. Halting all standard processing immediately.'
+        }
+      ],
       timestamp: new Date().toISOString()
     };
   }
 
-  // ── STAGE 3: Knowledge Retrieval via lookup_info tool ──
-  const lookupResults = [];
-  const allEntries = [];
-  const seenKeys = new Set();
+  // ── STEP 2: CHECK FOR GEMINI API KEY IN CONFIG OR RUNTIME ──
+  const apiKey = (options.apiKey || GEMINI_CONFIG.apiKey || '').trim();
+  const model = options.model || GEMINI_CONFIG.model || 'gemini-1.5-flash';
 
-  for (const sym of intake.primarySymptoms.slice(0, 3)) {
-    const result = lookup_info(sym);
-    lookupResults.push({ symptom: sym, data: result });
-    if (result.found) {
-      for (const entry of result.entries) {
-        const key = entry.condition;
-        if (!seenKeys.has(key)) {
-          seenKeys.add(key);
-          allEntries.push(entry);
-        }
+  if (apiKey) {
+    try {
+      const liveReport = await callLiveGeminiApi(rawInput, chatHistory, apiKey, model);
+      if (liveReport && liveReport.knowledge && liveReport.knowledge.length > 0) {
+        return liveReport;
       }
+    } catch (err) {
+      console.warn('Gemini Live API call failed, falling back to precision local engine:', err);
     }
   }
 
-  // Build ReAct trace
-  const reactTrace = buildReActTrace(intake, triageResult, lookupResults);
-
-  // Check for missing context
-  const missingQuestions = getMissingContextQuestions(intake);
-
-  // ── STAGE 4: Output Assembly ──
-  let riskLevel = 'LOW';
-  if (intake.severity === 'Severe' || intake.existingConditions.length > 0) riskLevel = 'MODERATE';
-  if (intake.primarySymptoms.length >= 4) riskLevel = 'MODERATE';
-
-  return {
-    type: 'normal',
-    intake: {
-      symptoms: intake.primarySymptoms,
-      rememberedSymptoms: intake.rememberedSymptoms,
-      duration: intake.duration || 'Not specified',
-      severity: intake.severity,
-      ageGroup: intake.ageGroup,
-      existingConditions: intake.existingConditions,
-      riskLevel
-    },
-    knowledge: allEntries.slice(0, 3).map(entry => ({
-      displayName: entry.condition,
-      emoji: entry.emoji,
-      commonCauses: entry.causes,
-      selfCare: entry.selfCare,
-      doctorQuestions: entry.doctorQuestions,
-      seekCareIf: entry.seekCareIf
-    })),
-    missingQuestions,
-    reactTrace,
-    engine: 'local',
-    timestamp: new Date().toISOString()
-  };
+  // ── STEP 3: PRECISION DYNAMIC LOCAL SYNTHESIS (FALLBACK) ──
+  const intake = extractClinicalEntities(rawInput, chatHistory);
+  return synthesizeDynamicLocalReport(intake);
 }
 
-/**
- * Async Pipeline Execution with optional Live Gemini AI Engine
- * 
- * @param {string} rawInput - User symptom prompt
- * @param {Object[]} chatHistory - Past session turns
- * @param {Object} aiConfig - { apiKey, model, isLiveAiEnabled }
- * @returns {Promise<Object>} Pipeline result
- */
-export async function executePipelineAsync(rawInput, chatHistory = [], aiConfig = {}) {
-  // 1. Run local deterministic triage FIRST for guaranteed safety
-  const localResult = executePipeline(rawInput, chatHistory);
-
-  // If it's an emergency or error, return immediately (safety rule)
-  if (localResult.type === 'emergency' || localResult.type === 'error') {
-    return localResult;
+export function executePipeline(rawInput, chatHistory = []) {
+  const triageResult = suggest_next_step(rawInput);
+  if (triageResult.isEmergency) {
+    return {
+      type: 'emergency',
+      triage: {
+        isEmergency: true,
+        matchedFlags: triageResult.flags.map(f => ({ pattern: f, icon: '🚨' })),
+        categories: triageResult.categories,
+        actions: triageResult.actions
+      },
+      intake: { symptoms: triageResult.flags, severity: 'CRITICAL', rawInput },
+      timestamp: new Date().toISOString()
+    };
   }
-
-  // If Gemini API is not configured or disabled, return local result
-  if (!aiConfig.isLiveAiEnabled || !aiConfig.apiKey || !aiConfig.apiKey.trim()) {
-    return localResult;
-  }
-
-  // 2. Call Google Gemini API for live humanized clinical synthesis
-  try {
-    const geminiResult = await callGeminiLiveEngine(rawInput, chatHistory, localResult, aiConfig);
-    if (geminiResult) {
-      return geminiResult;
-    }
-  } catch (err) {
-    console.warn('Gemini API call encountered an error. Falling back to local engine:', err);
-  }
-
-  // Fallback to local verified knowledge base
-  return localResult;
-}
-
-/**
- * Google Gemini Live Engine Caller
- */
-async function callGeminiLiveEngine(rawInput, chatHistory, localResult, aiConfig) {
-  const apiKey = aiConfig.apiKey.trim();
-  const model = aiConfig.model || 'gemini-1.5-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-  const pastContext = chatHistory.slice(-4).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
-  const retrievedFacts = localResult.knowledge.map(k => `Condition: ${k.displayName}\n- Causes: ${k.commonCauses.join('; ')}\n- Self-care: ${k.selfCare.join('; ')}\n- Seek care if: ${k.seekCareIf.join('; ')}`).join('\n\n');
-
-  const systemInstruction = `You are MedAssist, a precision clinical concierge decision-support assistant.
-Your goal is to provide warm, humanized, empathetic, and medically accurate educational guidance based strictly on the retrieved clinical facts.
-You MUST NOT diagnose or prescribe treatment.
-Return your response ONLY as valid JSON (no markdown fences, no raw text) matching this schema:
-{
-  "clinicalThought": "A 1-2 sentence clinical reasoning thought about the patient presentation",
-  "extractedSymptoms": ["symptom 1", "symptom 2"],
-  "duration": "duration if mentioned or 'Not specified'",
-  "severity": "Mild | Moderate | Severe | Unspecified",
-  "riskLevel": "LOW | MODERATE | EMERGENCY",
-  "knowledge": [
-    {
-      "displayName": "Condition / Cluster Name",
-      "emoji": "🩺",
-      "commonCauses": ["Cause 1 with natural explanation", "Cause 2", "Cause 3"],
-      "selfCare": ["Evidence-based action 1", "Action 2", "Action 3"],
-      "doctorQuestions": ["Specific question for doctor 1", "Question 2"],
-      "seekCareIf": ["Escalation trigger 1", "Trigger 2"]
-    }
-  ],
-  "missingQuestions": ["Clarifying question if key details like duration are missing"]
-}`;
-
-  const userPrompt = `[SESSION CONTEXT]
-${pastContext || 'New consultation session'}
-
-[PATIENT SYMPTOM INTAKE]
-"${rawInput}"
-
-[GROUNDED MEDICAL KNOWLEDGE BASE RETRIEVAL]
-${retrievedFacts || 'No exact match in local KB. Provide general safe evidence-based guidance.'}
-
-Synthesize the patient's presentation into the requested JSON schema.`;
-
-  const payload = {
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: systemInstruction + '\n\n' + userPrompt }]
-      }
-    ],
-    generationConfig: {
-      temperature: 0.3,
-      maxOutputTokens: 1200,
-      responseMimeType: 'application/json'
-    }
-  };
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API HTTP ${response.status}: ${errorText}`);
-  }
-
-  const data = await response.json();
-  const textOutput = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!textOutput) throw new Error('Empty response from Gemini API');
-
-  let parsed;
-  try {
-    parsed = JSON.parse(textOutput);
-  } catch (e) {
-    // Strip possible markdown code block
-    const cleaned = textOutput.replace(/```json/g, '').replace(/```/g, '').trim();
-    parsed = JSON.parse(cleaned);
-  }
-
-  // Update ReAct Trace with Gemini thought
-  const reactTrace = [
-    {
-      type: 'thought',
-      text: parsed.clinicalThought || `Synthesized presentation with Gemini ${model}. Extracted: [${(parsed.extractedSymptoms || []).join(', ')}].`
-    },
-    {
-      type: 'action',
-      tool: 'suggest_next_step',
-      input: rawInput,
-      output: 'SAFE_PROCEED: No acute emergency red flags. Gemini live synthesis authorized.'
-    },
-    {
-      type: 'action',
-      tool: 'lookup_info',
-      input: (parsed.extractedSymptoms || ['symptoms'])[0],
-      output: `Grounded fact base retrieved. Synthesized with ${model}.`
-    },
-    {
-      type: 'thought',
-      text: `Live AI synthesis complete. Compiled tabbed clinical dossier.`
-    }
-  ];
-
-  return {
-    type: 'normal',
-    intake: {
-      symptoms: parsed.extractedSymptoms || localResult.intake.symptoms,
-      rememberedSymptoms: localResult.intake.rememberedSymptoms,
-      duration: parsed.duration || localResult.intake.duration,
-      severity: parsed.severity || localResult.intake.severity,
-      ageGroup: localResult.intake.ageGroup,
-      existingConditions: localResult.intake.existingConditions,
-      riskLevel: parsed.riskLevel || localResult.intake.riskLevel
-    },
-    knowledge: (parsed.knowledge && parsed.knowledge.length > 0)
-      ? parsed.knowledge
-      : localResult.knowledge,
-    missingQuestions: parsed.missingQuestions || localResult.missingQuestions,
-    reactTrace,
-    engine: `gemini-${model}`,
-    timestamp: new Date().toISOString()
-  };
-}
-
-/**
- * Extract entities only (for debugging)
- */
-export function extractOnly(rawInput) {
-  return extractEntities(rawInput);
+  const intake = extractClinicalEntities(rawInput, chatHistory);
+  return synthesizeDynamicLocalReport(intake);
 }

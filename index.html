@@ -45,12 +45,6 @@
       </div>
 
       <div class="header-actions">
-        <!-- Live AI Engine Settings Modal Trigger -->
-        <button class="header-pill-btn" id="ai-settings-btn" title="Configure Live Google Gemini AI Engine">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-          <span id="ai-engine-status-label">⚡ AI Engine</span>
-        </button>
-
         <!-- Audio Haptics Toggle -->
         <button class="header-pill-btn" id="audio-toggle-btn" title="Toggle tactile acoustic feedback">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
@@ -143,81 +137,9 @@
         <div class="memory-items-list" id="memory-items-container">
           <!-- Populated by app.js -->
         </div>
-        <div style="margin-top: 16px; pt: 16px; border-top: 1px solid var(--border-hairline);">
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-hairline);">
           <button class="header-pill-btn" id="clear-memory-btn" style="width: 100%; justify-content: center;">
             Clear Memory Buffer
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Live AI Engine Settings Modal ── -->
-    <div class="memory-drawer-backdrop" id="ai-settings-backdrop">
-      <div class="ai-settings-modal-card">
-        <div class="drawer-header">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 1.3rem;">⚡</span>
-            <h3 class="drawer-title">Live AI Engine Configuration</h3>
-          </div>
-          <button class="drawer-close-btn" id="ai-settings-close">✕</button>
-        </div>
-
-        <p style="font-size: 0.82rem; color: var(--platinum-400); margin-bottom: 18px; line-height: 1.5;">
-          Connect your <strong>Google Gemini API Key</strong> for real-time, humanized, empathetic clinical synthesis while maintaining 100% deterministic emergency safety grounding.
-        </p>
-
-        <!-- Toggle Switch -->
-        <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface-1); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-bottom: 16px;">
-          <div>
-            <strong style="color: var(--platinum-100); font-size: 0.86rem; display: block;">Enable Live Gemini AI</strong>
-            <span style="color: var(--platinum-500); font-size: 0.72rem;">Falls back to local ReAct if key is unset</span>
-          </div>
-          <label class="switch-toggle">
-            <input type="checkbox" id="live-ai-toggle" checked>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-
-        <!-- API Key Input -->
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--platinum-400); font-weight: 600; margin-bottom: 6px;">
-            Google Gemini API Key
-          </label>
-          <div style="position: relative;">
-            <input
-              type="password"
-              id="gemini-api-key-input"
-              placeholder="AIzaSy..."
-              style="width: 100%; padding: 10px 40px 10px 14px; background: var(--bg-surface-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--platinum-100); font-family: var(--font-mono); font-size: 0.82rem; outline: none;"
-            >
-            <button type="button" id="toggle-key-visibility" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: var(--platinum-500); cursor: pointer;" title="Show/Hide Key">
-              👁️
-            </button>
-          </div>
-          <span style="display: block; font-size: 0.68rem; color: var(--platinum-500); margin-top: 5px;">
-            🔒 Stored locally in your browser's <code style="color: var(--gold-400);">localStorage</code>. Never transmitted to third parties.
-          </span>
-        </div>
-
-        <!-- Model Selection -->
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--platinum-400); font-weight: 600; margin-bottom: 6px;">
-            Gemini Model
-          </label>
-          <select id="gemini-model-select" style="width: 100%; padding: 10px 14px; background: var(--bg-surface-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--platinum-100); font-family: var(--font-sans); font-size: 0.82rem; outline: none;">
-            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Recommended — Fast & Generous Free Tier)</option>
-            <option value="gemini-2.0-flash">Gemini 2.0 Flash (Cutting-Edge Speed & Reasoning)</option>
-            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Clinical Reasoning)</option>
-          </select>
-        </div>
-
-        <!-- Action Buttons -->
-        <div style="display: flex; gap: 10px;">
-          <button class="header-pill-btn" id="save-ai-settings-btn" style="flex: 1; justify-content: center; background: linear-gradient(135deg, var(--gold-400), var(--gold-600)); color: #07080b; font-weight: 700; border: none; padding: 10px;">
-            Save & Apply
-          </button>
-          <button class="header-pill-btn" id="test-ai-connection-btn" style="justify-content: center; padding: 10px 16px;">
-            Test Key
           </button>
         </div>
       </div>

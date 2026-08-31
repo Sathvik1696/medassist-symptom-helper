@@ -428,16 +428,17 @@ class ReActAgent:
         if kb_results:
             for sym_name, data in kb_results:
                 lines.append(f"**{data['display_name']}:**")
-                for cause in data["common_causes"]:
+                # Filter causes to 2-3 directly relevant points
+                for cause in data["common_causes"][:3]:
                     lines.append(f"- {cause}")
                 lines.append("")
         else:
-            lines.append("- Symptoms described may be related to common non-emergent causes. Provide more details for specific guidance.\n")
+            lines.append("- Symptoms described may be related to non-emergent causes. Stay hydrated and monitor for changes.\n")
 
         lines.append("### 🏠 Safe At-Home Care Guidelines")
         if kb_results:
             for sym_name, data in kb_results:
-                for tip in data["self_care"]:
+                for tip in data["self_care"][:3]:
                     lines.append(f"- {tip}")
                 lines.append(f"- *When to consult a doctor:* {data['see_doctor_if']}")
         else:
