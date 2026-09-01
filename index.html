@@ -3,154 +3,872 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="MedAssist — Quiet Luxury AI Symptom Intelligence & Clinical Decision Support Concierge.">
-  <meta name="theme-color" content="#07080b">
-  <meta name="robots" content="noindex, nofollow">
-
-  <title>MedAssist — Concierge Symptom Intelligence</title>
-
-  <!-- Google Fonts Preconnect & Luxury Typography -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="css/styles.css">
+  <title>MedAssist — Clinical Decision Support & AI Symptom Intelligence</title>
+  <meta name="description" content="MedAssist is a professional, safety-first clinical decision support platform combining agentic AI reasoning, session context, and grounded medical knowledge.">
+  <meta name="theme-color" content="#0f172a">
 
   <!-- Favicon -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230d9488' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/></svg>">
+
+  <!-- Google Fonts: Plus Jakarta Sans, Inter, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+
+  <!-- Design System Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
-  <!-- Interactive Dynamic Cursor Spotlight -->
-  <div id="cursor-spotlight" aria-hidden="true"></div>
+  <!-- Dynamic Cursor Glow Track -->
+  <div class="cursor-spotlight" id="cursor-spotlight" aria-hidden="true"></div>
 
-  <div class="app-container" id="app">
-
-    <!-- ── Luxury Concierge Header ── -->
-    <header class="app-header" role="banner">
-      <div class="header-brand" id="brand-home-btn" title="Return to Clinical Studio">
-        <div class="header-crest">
-          <div class="crest-ring"></div>
-          <span class="crest-symbol">🩺</span>
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       1. STICKY TOP NAVBAR
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <header class="site-header" id="site-header">
+    <div class="nav-container">
+      
+      <!-- Brand Logo -->
+      <a href="#hero" class="brand-logo" id="brand-logo-btn" aria-label="MedAssist Home">
+        <div class="brand-symbol">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
         </div>
         <div class="brand-text">
-          <h1 class="brand-title">MedAssist</h1>
-          <span class="brand-subtitle">Concierge Symptom Intelligence</span>
+          <span class="brand-name">MedAssist</span>
+          <span class="brand-tag">Clinical AI</span>
         </div>
-      </div>
+      </a>
 
-      <div class="header-center-nav">
-        <div class="pipeline-status-badge">
-          <span class="pipeline-pulse-dot"></span>
-          <span>4-Stage ReAct Clinical Engine</span>
-        </div>
-      </div>
+      <!-- Desktop Navigation Menu -->
+      <nav class="nav-links" id="nav-links" aria-label="Main Navigation">
+        <a href="#hero" class="nav-link active">Home</a>
+        <a href="#how-it-works" class="nav-link">How It Works</a>
+        <a href="#workspace" class="nav-link">Assessment</a>
+        <a href="#architecture" class="nav-link">Architecture</a>
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#safety" class="nav-link">Safety</a>
+      </nav>
 
-      <div class="header-actions">
+      <!-- Right Header Actions -->
+      <div class="nav-actions">
         <!-- Audio Haptics Toggle -->
-        <button class="header-pill-btn" id="audio-toggle-btn" title="Toggle tactile acoustic feedback">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-          <span id="audio-status-label">Haptics On</span>
+        <button class="header-util-btn" id="audio-toggle-btn" title="Toggle tactile acoustic feedback" aria-label="Toggle audio feedback">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+          <span id="audio-status-label" class="btn-text-sm">Haptics On</span>
         </button>
 
-        <!-- Active Memory Buffer Inspector -->
-        <button class="header-pill-btn" id="memory-drawer-btn" title="Inspect session remembered clinical entities">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"></path><path d="M12 6v6l4 2"></path></svg>
-          <span>Memory</span>
-          <span class="memory-badge" id="memory-counter">0</span>
+        <!-- Session Memory Inspector -->
+        <button class="header-util-btn" id="memory-drawer-btn" title="Inspect active session memory context" aria-label="View session memory">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"></path><path d="M12 6v6l4 2"></path></svg>
+          <span class="btn-text-sm">Memory</span>
+          <span class="memory-count-badge" id="memory-counter">0</span>
         </button>
 
-        <!-- New Consultation Reset -->
-        <button class="header-pill-btn" id="clear-btn" title="Initialize new consultation session">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-          <span>Reset</span>
+        <!-- Primary CTA: Start Assessment -->
+        <a href="#workspace" class="nav-cta-btn" id="nav-cta-start">
+          <span>Start Assessment</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </a>
+
+        <!-- Mobile Menu Toggle Button -->
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+          <span></span><span></span><span></span>
         </button>
       </div>
-    </header>
 
-    <!-- ── Main Chat / Clinical Stream ── -->
-    <main class="chat-area" id="chat-messages" role="log" aria-label="Clinical Conversation Log" aria-live="polite">
-      <!-- Welcome Hero & Interactive Studio injected by app.js -->
-    </main>
+    </div>
+  </header>
 
-    <!-- ── Luxury Input Concierge Bar ── -->
-    <footer class="input-concierge-bar" role="form" aria-label="Symptom Intake Form">
-      <div class="input-concierge-inner">
-        <div class="input-capsule-wrap">
-          <div class="input-capsule-glow"></div>
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       2. HERO SECTION
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="hero-section" id="hero">
+    <div class="section-wrapper hero-grid">
+      
+      <!-- Hero Left Content -->
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="badge-pulse"></span>
+          <span>Next-Gen Clinical Decision Intelligence</span>
+        </div>
+
+        <h1 class="hero-headline">
+          Intelligent Symptom Guidance, <span class="gradient-text">Powered by AI.</span>
+        </h1>
+
+        <p class="hero-subheadline">
+          MedAssist helps you understand your symptoms, identify potential concerns, and determine the appropriate next step through an intelligent, safety-focused clinical reasoning workflow.
+        </p>
+
+        <div class="hero-cta-group">
+          <a href="#workspace" class="btn-primary" id="hero-start-btn">
+            <span>Start Symptom Assessment</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </a>
+          <a href="#how-it-works" class="btn-secondary">
+            <span>How MedAssist Works</span>
+          </a>
+        </div>
+
+        <!-- Metric Counters -->
+        <div class="hero-metrics-row">
+          <div class="hero-metric-item">
+            <span class="metric-number">4-Stage</span>
+            <span class="metric-label">ReAct Reasoning Engine</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="hero-metric-item">
+            <span class="metric-number">100%</span>
+            <span class="metric-label">Deterministic Safety Guardrails</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="hero-metric-item">
+            <span class="metric-number">Continuous</span>
+            <span class="metric-label">Session Memory Context</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hero Right: Interactive Floating Clinical Assessment Visualization -->
+      <div class="hero-visual-card-wrap">
+        <div class="hero-visual-card">
+          <div class="card-glass-header">
+            <div class="header-status-indicator">
+              <span class="live-status-dot"></span>
+              <span class="header-status-text">Clinical Assessment Active</span>
+            </div>
+            <span class="header-case-id">Protocol #MED-8924</span>
+          </div>
+
+          <!-- Step Progression Checklist -->
+          <div class="assessment-checklist">
+            <div class="checklist-item done">
+              <div class="check-icon">✓</div>
+              <div class="check-text">
+                <strong>Symptoms Identified</strong>
+                <span>Cranial pressure, bilateral temple throbbing, photophobia</span>
+              </div>
+            </div>
+
+            <div class="checklist-item done">
+              <div class="check-icon">✓</div>
+              <div class="check-text">
+                <strong>Context & Triggers Analyzed</strong>
+                <span>Onset 48h, severe screen strain & environmental heat</span>
+              </div>
+            </div>
+
+            <div class="checklist-item done">
+              <div class="check-icon">✓</div>
+              <div class="check-text">
+                <strong>Emergency Red Flags Checked</strong>
+                <span>Zero acute neuro-deficit or cardiac indicators detected</span>
+              </div>
+            </div>
+
+            <div class="checklist-item active">
+              <div class="check-icon-pulse">
+                <span class="pulse-ring"></span>
+              </div>
+              <div class="check-text">
+                <strong>Evidence-Based Guidance</strong>
+                <span>Synthesizing dark-room cooling protocol & physician notes...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Telemetry Capsule -->
+          <div class="telemetry-bar">
+            <div class="telemetry-item">
+              <span class="telemetry-label">Risk Level</span>
+              <span class="telemetry-badge risk-low">LOW (Non-Emergent)</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="telemetry-label">Confidence</span>
+              <span class="telemetry-badge">98.4% Grounded</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Auxiliary Micro-Card -->
+        <div class="floating-micro-badge float-top-right">
+          <span class="micro-icon">🛡️</span>
+          <div>
+            <strong>Safety Circuit Breaker</strong>
+            <span>Active Triage Protection</span>
+          </div>
+        </div>
+
+        <div class="floating-micro-badge float-bottom-left">
+          <span class="micro-icon">🧬</span>
+          <div>
+            <strong>Session Memory</strong>
+            <span>Context Retained</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       3. TRUST / VALUE STRIP
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="trust-strip-section">
+    <div class="section-wrapper">
+      <div class="trust-grid">
+        
+        <div class="trust-item">
+          <div class="trust-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          </div>
+          <div class="trust-content">
+            <h4 class="trust-title">AI-Powered Reasoning</h4>
+            <p class="trust-desc">Multi-stage ReAct planning for structured clinical assessment.</p>
+          </div>
+        </div>
+
+        <div class="trust-item">
+          <div class="trust-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          </div>
+          <div class="trust-content">
+            <h4 class="trust-title">Context Aware</h4>
+            <p class="trust-desc">Maintains relevant session history across conversation turns.</p>
+          </div>
+        </div>
+
+        <div class="trust-item">
+          <div class="trust-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          </div>
+          <div class="trust-content">
+            <h4 class="trust-title">Safety First</h4>
+            <p class="trust-desc">Identifies potential emergency indicators before delivering advice.</p>
+          </div>
+        </div>
+
+        <div class="trust-item">
+          <div class="trust-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          </div>
+          <div class="trust-content">
+            <h4 class="trust-title">Evidence Guided</h4>
+            <p class="trust-desc">Uses verified medical information to ground personalized responses.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       4. "HOW MEDASSIST WORKS" SECTION
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="workflow-section" id="how-it-works">
+    <div class="section-wrapper">
+      
+      <div class="section-header-center">
+        <span class="section-eyebrow">Clinical Workflow</span>
+        <h2 class="section-heading">From Symptoms to Safer Next Steps</h2>
+        <p class="section-subtext">
+          MedAssist executes an agentic, 4-stage decision-support cycle rather than generating ungrounded text.
+        </p>
+      </div>
+
+      <!-- Connected 4-Step Horizontal Workflow -->
+      <div class="workflow-steps-track">
+        
+        <div class="workflow-step-card">
+          <div class="step-badge">01</div>
+          <div class="step-icon">🔍</div>
+          <h3 class="step-title">Understand</h3>
+          <p class="step-desc">
+            MedAssist extracts reported symptoms, duration, severity, and clinical triggers from natural language.
+          </p>
+          <div class="step-footer-tag">Entity & Context Parsing</div>
+        </div>
+
+        <div class="workflow-step-card">
+          <div class="step-badge">02</div>
+          <div class="step-icon">🧠</div>
+          <h3 class="step-title">Reason</h3>
+          <p class="step-desc">
+            The agent evaluates available presentation factors and determines if vital context is missing.
+          </p>
+          <div class="step-footer-tag">ReAct Planning Loop</div>
+        </div>
+
+        <div class="workflow-step-card">
+          <div class="step-badge">03</div>
+          <div class="step-icon">🛡️</div>
+          <h3 class="step-title">Assess</h3>
+          <p class="step-desc">
+            The system executes deterministic emergency safety checks and retrieves grounded medical facts.
+          </p>
+          <div class="step-footer-tag">Triage & Knowledge Base</div>
+        </div>
+
+        <div class="workflow-step-card">
+          <div class="step-badge">04</div>
+          <div class="step-icon">📋</div>
+          <h3 class="step-title">Guide</h3>
+          <p class="step-desc">
+            MedAssist synthesizes a concise, humanized clinical report with clear at-home care and doctor questions.
+          </p>
+          <div class="step-footer-tag">Clinical Decision Dossier</div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       5. CORE PRODUCT: CLINICAL ASSESSMENT WORKSPACE
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="workspace-section" id="workspace">
+    <div class="section-wrapper">
+      
+      <div class="section-header-center">
+        <span class="section-eyebrow">Interactive Consultation Engine</span>
+        <h2 class="section-heading">Clinical Assessment Workspace</h2>
+        <p class="section-subtext">
+          Experience precision decision support. Select anatomical clusters or type your presentation naturally.
+        </p>
+      </div>
+
+      <!-- 2-Column Clinical Workspace Grid -->
+      <div class="clinical-workspace-grid">
+        
+        <!-- LEFT: Patient Context & Anatomical Cluster Matrix -->
+        <aside class="patient-context-panel" aria-label="Patient Intake & Context Matrix">
           
-          <!-- Voice Input Mic Button -->
-          <button class="input-mic-btn" id="voice-input-btn" title="Spoken symptom intake (Speech Recognition)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-          </button>
+          <div class="panel-card-header">
+            <div class="panel-header-title">
+              <span class="panel-dot"></span>
+              <h3>Active Intake Matrix</h3>
+            </div>
+            <button class="reset-consultation-btn" id="clear-btn" title="Reset consultation session">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              <span>Reset</span>
+            </button>
+          </div>
 
-          <textarea
-            id="user-input"
-            placeholder="Describe your symptoms in natural language or select anatomical zones above..."
-            rows="1"
-            maxlength="1000"
-            aria-label="Symptom Description Input"
-          ></textarea>
-          <span class="input-char-counter" id="char-count">0/1000</span>
+          <!-- Live Biometric & Presentation Status -->
+          <div class="intake-summary-box">
+            <div class="intake-stat-row">
+              <span class="stat-label">Reported Symptoms</span>
+              <span class="stat-value" id="sidebar-symptoms-count">None staged</span>
+            </div>
+            <div class="intake-stat-row">
+              <span class="stat-label">Duration Staged</span>
+              <span class="stat-value" id="sidebar-duration-val">1–3 Days</span>
+            </div>
+            <div class="intake-stat-row">
+              <span class="stat-label">Severity Level</span>
+              <span class="stat-value severity-badge-mod" id="sidebar-severity-val">Moderate</span>
+            </div>
+            <div class="intake-stat-row">
+              <span class="stat-label">Triage Risk</span>
+              <span class="stat-value risk-badge-low" id="sidebar-risk-val">LOW (Safe)</span>
+            </div>
+          </div>
+
+          <!-- Anatomical Body Systems Selector -->
+          <div class="anatomical-section-wrap">
+            <div class="section-mini-header">
+              <span>Anatomical Quick-Select</span>
+            </div>
+            <div class="anatomical-systems-tabs" id="system-tabs-container">
+              <!-- Rendered by app.js: Cranial, Cardiopulmonary, Respiratory, GI, Musculoskeletal, etc. -->
+            </div>
+          </div>
+
+          <!-- Quick Symptom Capsule Vault -->
+          <div class="symptom-vault-wrap">
+            <div class="section-mini-header">
+              <span>Common Clinical Capsules (Click to add)</span>
+            </div>
+            <div class="capsule-vault-grid" id="symptom-capsules-container">
+              <!-- Rendered by app.js -->
+            </div>
+          </div>
+
+          <!-- Duration & Severity Controls -->
+          <div class="clinical-controls-row">
+            <div class="control-group">
+              <label class="control-label">Duration</label>
+              <select class="clinical-select" id="duration-select">
+                <option value="Just started today">Started today</option>
+                <option value="1–3 Days" selected>1–3 Days</option>
+                <option value="4–7 Days">4–7 Days</option>
+                <option value="More than 2 Weeks">&gt; 2 Weeks (Persistent)</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label class="control-label">Severity</label>
+              <select class="clinical-select" id="severity-select">
+                <option value="Mild">Mild (Tolerable)</option>
+                <option value="Moderate" selected>Moderate (Impacting activity)</option>
+                <option value="Severe">Severe (Intense)</option>
+              </select>
+            </div>
+          </div>
+
+        </aside>
+
+        <!-- RIGHT: Decision Support Console & Dossier Area -->
+        <main class="decision-console-panel" aria-label="Clinical Decision Assistant">
+          
+          <!-- Console Top Header & Live Progress Tracker -->
+          <div class="console-top-header">
+            <div class="assistant-status-badge">
+              <span class="assistant-pulse-dot"></span>
+              <span class="assistant-name">MedAssist Clinical Assistant</span>
+              <span class="assistant-live-text">● Assessment Ready</span>
+            </div>
+
+            <!-- 4-Stage Live Workflow Progress Tracker -->
+            <div class="stage-progress-bar" id="stage-progress-bar">
+              <div class="stage-step-pill active" id="stage-step-0">
+                <span class="step-num">1</span>
+                <span class="step-name">Understand</span>
+              </div>
+              <span class="stage-arrow">→</span>
+              <div class="stage-step-pill" id="stage-step-1">
+                <span class="step-num">2</span>
+                <span class="step-name">Reason</span>
+              </div>
+              <span class="stage-arrow">→</span>
+              <div class="stage-step-pill" id="stage-step-2">
+                <span class="step-num">3</span>
+                <span class="step-name">Risk Check</span>
+              </div>
+              <span class="stage-arrow">→</span>
+              <div class="stage-step-pill" id="stage-step-3">
+                <span class="step-num">4</span>
+                <span class="step-name">Guidance</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main Clinical Stream / Dossier Output Area -->
+          <div class="clinical-stream-area" id="chat-messages" role="log" aria-label="Clinical Assessment Log" aria-live="polite">
+            <!-- Studio Welcome Card & Output Dossiers rendered by app.js -->
+          </div>
+
+          <!-- Restrained Clinical Input Bar -->
+          <div class="clinical-input-bar">
+            
+            <!-- Voice Input Button -->
+            <button class="input-mic-btn" id="voice-input-btn" title="Speak symptoms via microphone" aria-label="Voice input">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+            </button>
+
+            <!-- Textarea -->
+            <textarea
+              id="user-input"
+              class="clinical-textarea"
+              placeholder="Describe your symptoms (e.g. throbbing left-sided headache after working in the sun for 3 hours)..."
+              rows="1"
+              maxlength="1000"
+              aria-label="Symptom Description Input"
+            ></textarea>
+
+            <div class="input-right-actions">
+              <span class="char-counter" id="char-count">0/1000</span>
+              <button class="btn-send" id="send-btn" disabled title="Analyze symptoms" aria-label="Analyze symptoms">
+                <span>Assess</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+            </div>
+
+          </div>
+
+        </main>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       6. AGENTIC AI ARCHITECTURE VISUALIZATION ("More Than a Chatbot")
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="architecture-section" id="architecture">
+    <div class="section-wrapper">
+      
+      <div class="section-header-center">
+        <span class="section-eyebrow">Under The Hood</span>
+        <h2 class="section-heading">More Than a Chatbot</h2>
+        <p class="section-subtext">
+          MedAssist combines natural language parsing with structured clinical reasoning, contextual memory, emergency risk detection, and grounded medical knowledge.
+        </p>
+      </div>
+
+      <!-- Agentic Architecture Flow Chart -->
+      <div class="arch-flow-diagram">
+        
+        <!-- Step 1 -->
+        <div class="arch-node">
+          <div class="arch-node-badge">User Input</div>
+          <div class="arch-node-icon">👤</div>
+          <div class="arch-node-title">Symptom Presentation</div>
+          <div class="arch-node-desc">Free-text or anatomical chip selection</div>
         </div>
 
-        <button class="send-action-btn" id="send-btn" aria-label="Execute Clinical Analysis" disabled title="Send for clinical analysis">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-        </button>
+        <div class="arch-connector-line">
+          <span class="connector-arrow">↓</span>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="arch-node highlight-node">
+          <div class="arch-node-badge">Step 1: Parse</div>
+          <div class="arch-node-icon">🔍</div>
+          <div class="arch-node-title">Intent & Entity Extractor</div>
+          <div class="arch-node-desc">Identifies symptoms, duration, triggers & severity</div>
+        </div>
+
+        <div class="arch-connector-line">
+          <span class="connector-arrow">↓</span>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="arch-node highlight-node-teal">
+          <div class="arch-node-badge">Step 2: Planner</div>
+          <div class="arch-node-icon">🧠</div>
+          <div class="arch-node-title">ReAct Agent Orchestrator</div>
+          <div class="arch-node-desc">Evaluates context, missing details & invokes safety tools</div>
+        </div>
+
+        <div class="arch-connector-line">
+          <span class="connector-arrow">↓</span>
+        </div>
+
+        <!-- Step 4: Dual Branch -->
+        <div class="arch-dual-branch">
+          <div class="arch-sub-node">
+            <div class="sub-node-icon">📚</div>
+            <strong>Medical Knowledge Grounding</strong>
+            <span>Verified clinical causes, self-care & doctor guides</span>
+          </div>
+          <div class="arch-sub-node">
+            <div class="sub-node-icon">🧬</div>
+            <strong>Session Context Buffer</strong>
+            <span>Memory folded across multi-turn consultations</span>
+          </div>
+        </div>
+
+        <div class="arch-connector-line">
+          <span class="connector-arrow">↓</span>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="arch-node highlight-node-amber">
+          <div class="arch-node-badge">Step 3: Triage</div>
+          <div class="arch-node-icon">🛡️</div>
+          <div class="arch-node-title">Emergency Risk Circuit Breaker</div>
+          <div class="arch-node-desc">Instant deterministic interception for cardiac/respiratory red flags</div>
+        </div>
+
+        <div class="arch-connector-line">
+          <span class="connector-arrow">↓</span>
+        </div>
+
+        <!-- Step 6 -->
+        <div class="arch-node highlight-node-green">
+          <div class="arch-node-badge">Step 4: Output</div>
+          <div class="arch-node-icon">📋</div>
+          <div class="arch-node-title">Personalized Clinical Dossier</div>
+          <div class="arch-node-desc">Clear etiology, targeted home protocol & physician questions</div>
+        </div>
+
       </div>
 
-      <div class="luxury-footer-watermark">
-        <span><kbd>Enter</kbd> to analyze · <kbd>Shift + Enter</kbd> for line break</span>
-        <span>MedAssist Private Intelligence · Non-Diagnostic Clinical Reference</span>
+      <!-- Safe High-Level Process States -->
+      <div class="process-states-row">
+        <div class="state-pill"><span class="check-pill-icon">✓</span> Symptoms Extracted</div>
+        <div class="state-pill"><span class="check-pill-icon">✓</span> Context Evaluated</div>
+        <div class="state-pill"><span class="check-pill-icon">✓</span> Risk Indicators Checked</div>
+        <div class="state-pill"><span class="check-pill-icon">✓</span> Evidence Retrieved</div>
+        <div class="state-pill"><span class="check-pill-icon">✓</span> Safety Review Completed</div>
       </div>
-    </footer>
 
-    <!-- ── Emergency Circuit Breaker Overlay ── -->
-    <div class="emergency-overlay" id="emergency-overlay" role="alertdialog" aria-modal="true" aria-label="Critical Emergency Alert">
-      <div class="emergency-overlay-bg"></div>
-      <div class="emergency-card-modal">
-        <div class="emergency-siren-crest">🚨</div>
-        <h2 class="emergency-modal-title">Medical Emergency Detected</h2>
-        <p class="emergency-modal-desc">
-          Your reported symptoms present acute clinical red flags. Please seek immediate professional emergency medical care.
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       7. FEATURES SECTION (2x3 Modern SaaS Grid)
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="features-section" id="features">
+    <div class="section-wrapper">
+      
+      <div class="section-header-center">
+        <span class="section-eyebrow">Key Capabilities</span>
+        <h2 class="section-heading">Engineered for Clinical Precision</h2>
+        <p class="section-subtext">
+          Explore the features that set MedAssist apart from basic chatbots and conversational scripts.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        
+        <div class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+          </div>
+          <h3 class="feature-title">Intelligent Symptom Analysis</h3>
+          <p class="feature-desc">
+            Evaluates symptoms in biological context rather than treating each prompt as an isolated keyword search.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+          </div>
+          <h3 class="feature-title">Session Memory Buffer</h3>
+          <p class="feature-desc">
+            Maintains multi-turn context throughout your consultation, folding earlier reported symptoms into subsequent answers.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          </div>
+          <h3 class="feature-title">Emergency Detection</h3>
+          <p class="feature-desc">
+            Identifies potentially serious red flags (cardiac, stroke, acute trauma) and prioritizes urgent emergency care immediately.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          </div>
+          <h3 class="feature-title">Adaptive Context Inquiry</h3>
+          <p class="feature-desc">
+            Identifies when crucial presentation data (like duration or severity) is missing and prompts for clarification.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+          </div>
+          <h3 class="feature-title">Evidence-Guided Guidance</h3>
+          <p class="feature-desc">
+            Grounds all physiological explanations in verified clinical fact patterns with zero hallucinated treatments.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-box">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          </div>
+          <h3 class="feature-title">Clear Clinical Explanations</h3>
+          <p class="feature-desc">
+            Translates complex physiological mechanisms into calm, empathetic, and actionable guidance for patient peace of mind.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       8. SAFETY SECTION ("Safety Comes First")
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="safety-section" id="safety">
+    <div class="section-wrapper">
+      
+      <div class="safety-card-container">
+        
+        <div class="safety-badge">
+          <span class="safety-badge-icon">🛡️</span>
+          <span>Commitment to Patient Safety</span>
+        </div>
+
+        <h2 class="safety-heading">Safety Comes First</h2>
+
+        <p class="safety-lead-text">
+          MedAssist is designed to provide informational, educational guidance and does not replace professional medical diagnosis, clinical evaluation, or doctor prescribed treatment.
         </p>
 
-        <div class="emergency-dial-grid">
-          <a href="tel:911" class="emergency-dial-btn" style="text-decoration: none;">🇺🇸 Call 911</a>
-          <a href="tel:112" class="emergency-dial-btn" style="text-decoration: none;">🇪🇺 Call 112</a>
+        <div class="safety-columns-grid">
+          
+          <div class="safety-column-item">
+            <div class="safety-col-icon">🚨</div>
+            <h4>Emergency Detection Protocol</h4>
+            <p>
+              If your symptoms match acute clinical red flags (such as crushing chest pain, sudden numbness, or severe dyspnea), MedAssist halts standard informational processing immediately and displays urgent emergency instructions.
+            </p>
+          </div>
+
+          <div class="safety-column-item">
+            <div class="safety-col-icon">🩺</div>
+            <h4>Non-Diagnostic Mandate</h4>
+            <p>
+              We describe potential concerns, common causes, and symptom patterns rather than offering definitive diagnosis. Always consult a qualified physician or healthcare provider for medical evaluation.
+            </p>
+          </div>
+
         </div>
 
-        <button class="emergency-dismiss-action" id="emergency-dismiss">
-          I Understand — View Emergency Dossier
-        </button>
+        <div class="safety-emergency-actions">
+          <a href="tel:911" class="safety-dial-btn" style="text-decoration: none;">🇺🇸 Call 911 (US)</a>
+          <a href="tel:112" class="safety-dial-btn" style="text-decoration: none;">🇪🇺 Call 112 (EU/UK)</a>
+        </div>
+
       </div>
-    </div>
 
-    <!-- ── Session Memory Inspector Drawer ── -->
-    <div class="memory-drawer-backdrop" id="memory-drawer-backdrop">
-      <div class="memory-drawer-panel">
-        <div class="drawer-header">
-          <h3 class="drawer-title">Active Session Memory</h3>
-          <button class="drawer-close-btn" id="memory-drawer-close">✕</button>
-        </div>
-        <p style="font-size: 0.78rem; color: var(--platinum-400); margin-bottom: 16px;">
-          Symptoms and clinical context tracked across past conversation turns in this session:
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       9. FINAL CALL TO ACTION BANNER
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="final-cta-section">
+    <div class="section-wrapper">
+      
+      <div class="cta-banner-card">
+        <h2 class="cta-banner-heading">Understand Your Symptoms. Know Your Next Step.</h2>
+        <p class="cta-banner-subtext">
+          Start a guided clinical assessment with MedAssist today. Powered by multi-stage agentic AI reasoning.
         </p>
-        <div class="memory-items-list" id="memory-items-container">
-          <!-- Populated by app.js -->
-        </div>
-        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-hairline);">
-          <button class="header-pill-btn" id="clear-memory-btn" style="width: 100%; justify-content: center;">
-            Clear Memory Buffer
-          </button>
+
+        <div class="cta-buttons-row">
+          <a href="#workspace" class="btn-primary btn-large" id="cta-start-assessment">
+            <span>Start Assessment</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </a>
+          <a href="#how-it-works" class="btn-secondary btn-large">
+            <span>Explore How It Works</span>
+          </a>
         </div>
       </div>
+
     </div>
+  </section>
 
-    <!-- ── Toast Notification ── -->
-    <div class="luxury-toast" id="luxury-toast">Copied to clipboard</div>
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       10. PROFESSIONAL HEALTHCARE FOOTER
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <footer class="site-footer">
+    <div class="section-wrapper">
+      
+      <div class="footer-top-grid">
+        
+        <!-- Brand Column -->
+        <div class="footer-brand-col">
+          <div class="brand-logo" style="margin-bottom: 12px;">
+            <div class="brand-symbol">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="brand-text">
+              <span class="brand-name">MedAssist</span>
+              <span class="brand-tag">Clinical AI</span>
+            </div>
+          </div>
+          <p class="footer-brand-desc">
+            Precision clinical decision support & agentic symptom intelligence. Empowering patients with calm, safety-guided health insights.
+          </p>
+        </div>
 
+        <!-- Links Columns -->
+        <div class="footer-links-col">
+          <h4 class="footer-col-title">Platform</h4>
+          <a href="#hero" class="footer-link">Home</a>
+          <a href="#how-it-works" class="footer-link">How It Works</a>
+          <a href="#workspace" class="footer-link">Assessment Engine</a>
+          <a href="#architecture" class="footer-link">Agent Architecture</a>
+        </div>
+
+        <div class="footer-links-col">
+          <h4 class="footer-col-title">Clinical & Safety</h4>
+          <a href="#safety" class="footer-link">Safety Standards</a>
+          <a href="#features" class="footer-link">Features</a>
+          <a href="https://github.com/Sathvik1696/medassist-symptom-helper" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub Source</a>
+        </div>
+
+        <div class="footer-links-col">
+          <h4 class="footer-col-title">Legal & Notice</h4>
+          <span class="footer-meta-text">Non-Diagnostic Platform</span>
+          <span class="footer-meta-text">Topic T23 ReAct Spec</span>
+          <span class="footer-meta-text">Apache 2.0 / MIT Open</span>
+        </div>
+
+      </div>
+
+      <div class="footer-bottom-bar">
+        <p class="footer-disclaimer-text">
+          <strong>Medical Notice:</strong> MedAssist is for informational and educational purposes only and does not constitute medical diagnosis, treatment, or professional medical advice. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.
+        </p>
+        <div class="footer-copyright">
+          © 2026 MedAssist Clinical AI. All rights reserved.
+        </div>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       11. MODALS & DRAWERS (EMERGENCY, MEMORY, TOAST)
+       ═══════════════════════════════════════════════════════════════════════ -->
+
+  <!-- Emergency Triage Overlay Modal -->
+  <div class="emergency-modal-backdrop" id="emergency-overlay" role="dialog" aria-modal="true" aria-labelledby="emergency-title">
+    <div class="emergency-modal-card">
+      <div class="emergency-siren-badge">🚨 CRITICAL EMERGENCY NOTICE</div>
+      
+      <h2 class="emergency-headline" id="emergency-title">Immediate Medical Attention Required</h2>
+      
+      <p class="emergency-explanation">
+        Your reported presentation includes acute clinical red flags. Please halt self-care and seek immediate professional emergency medical evaluation.
+      </p>
+
+      <div class="emergency-dial-grid">
+        <a href="tel:911" class="emergency-dial-btn" style="text-decoration: none;">🇺🇸 Call 911 (US)</a>
+        <a href="tel:112" class="emergency-dial-btn" style="text-decoration: none;">🇪🇺 Call 112 (EU/UK)</a>
+      </div>
+
+      <button class="emergency-dismiss-action" id="emergency-dismiss">
+        I Understand — View Emergency Clinical Dossier
+      </button>
+    </div>
   </div>
 
-  <!-- App Bootstrap -->
+  <!-- Session Memory Inspector Drawer -->
+  <div class="memory-drawer-backdrop" id="memory-drawer-backdrop" role="dialog" aria-modal="true" aria-label="Session Memory Inspector">
+    <div class="memory-drawer-panel">
+      <div class="drawer-header">
+        <h3 class="drawer-title">Active Session Memory Buffer</h3>
+        <button class="drawer-close-btn" id="memory-drawer-close" aria-label="Close memory drawer">✕</button>
+      </div>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+        Symptoms and presentation context tracked across conversation turns during this session:
+      </p>
+      <div class="memory-items-list" id="memory-items-container">
+        <!-- Populated dynamically by app.js -->
+      </div>
+      <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+        <button class="header-util-btn" id="clear-memory-btn" style="width: 100%; justify-content: center;">
+          Clear Session Memory Buffer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="luxury-toast" id="luxury-toast">Copied to clipboard</div>
+
+  <!-- Application Bootstrap -->
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

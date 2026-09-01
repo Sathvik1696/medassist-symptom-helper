@@ -1,11 +1,11 @@
 /**
- * renderer.js — Quiet Luxury Clinical Dossier Renderer
+ * renderer.js — Bright Modern Clinical Dossier Renderer
  * 
  * Renders structured, interactive tabbed clinical dossiers with:
- * - Multi-Tab Navigation (Overview, Protocol, Physician Guide, ReAct Trace)
- * - Copy / Export Report Actions
+ * - Multi-Tab Navigation (Etiology, Protocol, Physician Guide, ReAct Trace)
+ * - Copy / Export Print PDF Actions
  * - Speech Audio Synthesis Trigger
- * - Zero Cluttered Disclaimer Spam (Streamlined Quiet Luxury Layout)
+ * - High-contrast, clean healthcare SaaS design
  */
 
 /**
@@ -34,7 +34,7 @@ function renderNormalDossier(result, dossierId) {
   // 1. Build Symptoms Tags
   const symptomTags = (intake.symptoms && intake.symptoms.length > 0)
     ? intake.symptoms.map(s => `<span class="symptom-tag-pill">${escapeHtml(capitalize(s))}</span>`).join('')
-    : '<span style="color: var(--platinum-500);">Unspecified Symptoms</span>';
+    : '<span style="color: var(--text-muted);">Unspecified Symptoms</span>';
 
   // 2. Build Tab 1: Clinical Etiology & Overview
   let overviewTabContent = '';
@@ -43,7 +43,7 @@ function renderNormalDossier(result, dossierId) {
       overviewTabContent += `
         <div class="clinical-section-block">
           <h4 class="clinical-section-title"><span>${entry.emoji}</span> ${escapeHtml(entry.displayName)}</h4>
-          <p style="font-size: 0.8rem; color: var(--platinum-400); margin-bottom: 12px; font-style: italic;">
+          <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 12px; font-style: italic;">
             Documented physiological context & common clinical associations:
           </p>
           <ul class="clinical-bullet-list causes-list">
@@ -54,7 +54,7 @@ function renderNormalDossier(result, dossierId) {
     }
   } else {
     overviewTabContent = `
-      <div style="padding: 16px; color: var(--platinum-400); font-size: 0.88rem;">
+      <div style="padding: 16px; color: var(--text-muted); font-size: 0.88rem;">
         No exact diagnostic clusters matched your specific search query. Clinical triage continues to monitor general safety criteria.
       </div>
     `;
@@ -91,7 +91,7 @@ function renderNormalDossier(result, dossierId) {
               <span>⚠️</span> Escalation Criteria (Schedule Consultation If):
             </div>
             <ul class="clinical-bullet-list" style="margin: 0;">
-              ${entry.seekCareIf.map(item => `<li style="font-size: 0.82rem; color: #fde68a;">${escapeHtml(item)}</li>`).join('')}
+              ${entry.seekCareIf.map(item => `<li style="font-size: 0.82rem; color: #92400e;">${escapeHtml(item)}</li>`).join('')}
             </ul>
           </div>
         </div>
@@ -116,7 +116,7 @@ function renderNormalDossier(result, dossierId) {
             return `
               <div class="react-terminal-step action-step">
                 <span class="terminal-badge action-badge">Tool Invocation</span>
-                <span class="terminal-text"><strong style="color: var(--emerald-400);">${escapeHtml(step.tool)}</strong>("${escapeHtml(step.input.substring(0, 75))}${step.input.length > 75 ? '...' : ''}")</span>
+                <span class="terminal-text"><strong style="color: #2dd4bf;">${escapeHtml(step.tool)}</strong>("${escapeHtml(step.input.substring(0, 75))}${step.input.length > 75 ? '...' : ''}")</span>
               </div>
               <div class="react-terminal-step obs-step">
                 <span class="terminal-badge obs-badge">Tool Observation</span>
@@ -129,19 +129,19 @@ function renderNormalDossier(result, dossierId) {
       </div>
     `;
   } else {
-    traceTabContent = `<div style="color: var(--platinum-500); font-size: 0.8rem; font-family: var(--font-mono);">No execution trace logged for this turn.</div>`;
+    traceTabContent = `<div style="color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono);">No execution trace logged for this turn.</div>`;
   }
 
   // Missing Context Callout if any
   let missingQuestionsBlock = '';
   if (missingQuestions && missingQuestions.length > 0) {
     missingQuestionsBlock = `
-      <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-sm); padding: 14px 18px; margin: 16px 24px;">
-        <div style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sapphire-400); margin-bottom: 6px;">
-          ✦ Clinical Context Optimization:
+      <div style="background: var(--sky-blue-subtle); border: 1px solid #bae6fd; border-radius: var(--radius-sm); padding: 12px 16px; margin: 12px 20px;">
+        <div style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sky-blue); margin-bottom: 4px;">
+          ✦ Clinical Context Clarification:
         </div>
         <ul style="list-style: none; padding: 0; margin: 0;">
-          ${missingQuestions.map(q => `<li style="font-size: 0.84rem; color: var(--platinum-300); margin-bottom: 4px;">→ ${escapeHtml(q)}</li>`).join('')}
+          ${missingQuestions.map(q => `<li style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 2px;">→ ${escapeHtml(q)}</li>`).join('')}
         </ul>
       </div>
     `;
@@ -196,7 +196,7 @@ function renderNormalDossier(result, dossierId) {
           <span class="matrix-label">Calculated Risk</span>
           <div class="matrix-value">
             <span class="risk-indicator-pill ${riskClass}">
-              <span style="width: 5px; height: 5px; border-radius: 50%; background: currentColor;"></span>
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: currentColor;"></span>
               ${escapeHtml(intake.riskLevel || 'LOW')}
             </span>
           </div>
@@ -222,20 +222,18 @@ function renderNormalDossier(result, dossierId) {
       <!-- Missing Questions if relevant -->
       ${missingQuestionsBlock}
 
-      <!-- Tab Panes Content -->
-      <div class="dossier-body">
-        <div class="dossier-tab-pane active" data-pane="overview" role="tabpanel">
-          ${overviewTabContent}
-        </div>
-        <div class="dossier-tab-pane" data-pane="protocol" role="tabpanel">
-          ${protocolTabContent}
-        </div>
-        <div class="dossier-tab-pane" data-pane="physician" role="tabpanel">
-          ${physicianTabContent}
-        </div>
-        <div class="dossier-tab-pane" data-pane="trace" role="tabpanel">
-          ${traceTabContent}
-        </div>
+      <!-- Tab Panes Content Body -->
+      <div class="dossier-tab-content tab-content-overview" style="display: block;">
+        ${overviewTabContent}
+      </div>
+      <div class="dossier-tab-content tab-content-protocol" style="display: none;">
+        ${protocolTabContent}
+      </div>
+      <div class="dossier-tab-content tab-content-physician" style="display: none;">
+        ${physicianTabContent}
+      </div>
+      <div class="dossier-tab-content tab-content-trace" style="display: none;">
+        ${traceTabContent}
       </div>
 
     </div>
@@ -248,129 +246,61 @@ function renderNormalDossier(result, dossierId) {
 function renderEmergencyDossier(result, dossierId) {
   const { triage, reactTrace } = result;
 
-  const categoriesHtml = (triage.categories || []).map(cat => `
-    <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 10px; display: flex; gap: 12px; align-items: flex-start;">
-      <span style="font-size: 1.4rem;">${cat.icon}</span>
-      <div>
-        <strong style="color: var(--crimson-400); font-size: 0.92rem; display: block; margin-bottom: 2px;">${escapeHtml(cat.label)}</strong>
-        <p style="color: var(--platinum-200); font-size: 0.84rem; margin: 0; line-height: 1.5;">${escapeHtml(cat.action)}</p>
+  let flagsHtml = '';
+  if (triage.matchedFlags && triage.matchedFlags.length > 0) {
+    flagsHtml = triage.matchedFlags.map(f => `
+      <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 8px;">
+        <strong style="color: var(--color-danger); font-size: 0.88rem;">🚨 Red Flag: ${escapeHtml(f.pattern.toUpperCase())}</strong>
+        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Immediate emergency protocol triggered.</p>
       </div>
-    </div>
-  `).join('');
-
-  const flagsHtml = (triage.matchedFlags || []).map(f =>
-    `<span style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 3px 10px; border-radius: var(--radius-pill); font-size: 0.72rem; font-weight: 600;">🚨 ${escapeHtml(capitalize(f.pattern))}</span>`
-  ).join(' ');
+    `).join('');
+  }
 
   return `
-    <div class="clinical-dossier-card" id="${dossierId}" style="border-color: rgba(239, 68, 68, 0.5); box-shadow: 0 0 40px rgba(239, 68, 68, 0.15);">
-      <div style="background: linear-gradient(135deg, #1f0b0d, #140708); padding: 22px 24px; border-bottom: 1px solid rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <span style="font-size: 1.8rem; animation: pulseDot 1s infinite;">🚨</span>
+    <div class="clinical-dossier-card" id="${dossierId}" style="border: 2px solid var(--color-danger);">
+      <div class="dossier-header" style="background: #fef2f2; border-bottom: 1px solid #fecaca;">
+        <div class="dossier-title-area">
+          <div class="dossier-seal" style="background: #fee2e2; border-color: #fca5a5; color: var(--color-danger);">🚨</div>
           <div>
-            <h3 style="font-family: var(--font-serif); font-size: 1.3rem; color: var(--crimson-400); margin: 0;">Critical Emergency Triage Alert</h3>
-            <span style="font-size: 0.72rem; color: #fca5a5; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;">Immediate Emergency Action Required</span>
+            <h3 class="dossier-title" style="color: var(--color-danger);">Emergency Triage Warning</h3>
+            <div class="dossier-subtitle">Critical Clinical Interception</div>
           </div>
         </div>
-        <span class="risk-indicator-pill risk-emergency">RED FLAG DETECTED</span>
       </div>
-
-      <div style="padding: 24px;">
-        <p style="font-size: 0.95rem; color: var(--platinum-100); line-height: 1.6; margin-bottom: 18px;">
-          The reported clinical symptoms match high-risk acute emergency criteria. <strong>Standard information retrieval has been halted for your safety.</strong>
+      <div class="dossier-tab-content" style="display: block;">
+        <p style="font-size: 0.95rem; color: var(--color-danger); font-weight: 700; margin-bottom: 14px;">
+          Your symptoms indicate a potential high-risk medical emergency.
         </p>
-
-        <div style="margin-bottom: 20px;">
-          ${categoriesHtml}
-        </div>
-
-        <div style="background: rgba(239, 68, 68, 0.12); border: 2px solid rgba(239, 68, 68, 0.4); border-radius: var(--radius-md); padding: 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
-          <div>
-            <strong style="color: #fff; font-size: 1rem; display: block;">Call Emergency Medical Services Immediately</strong>
-            <span style="color: var(--platinum-300); font-size: 0.8rem;">Do not operate a motor vehicle. Seek immediate transportation to nearest ER.</span>
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <a href="tel:911" class="emergency-dial-btn" style="text-decoration: none;">🇺🇸 911</a>
-            <a href="tel:112" class="emergency-dial-btn" style="text-decoration: none;">🇪🇺 112</a>
-            <a href="tel:999" class="emergency-dial-btn" style="text-decoration: none;">🇬🇧 999</a>
-          </div>
-        </div>
-
-        <div>
-          <span style="font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--platinum-500); font-weight: 600; display: block; margin-bottom: 8px;">Detected Risk Flags:</span>
-          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-            ${flagsHtml}
-          </div>
+        ${flagsHtml}
+        <div style="display: flex; gap: 12px; margin-top: 16px;">
+          <a href="tel:911" class="btn-primary" style="background: var(--color-danger); text-decoration: none;">🇺🇸 Call 911</a>
+          <a href="tel:112" class="btn-primary" style="background: var(--color-danger); text-decoration: none;">🇪🇺 Call 112</a>
         </div>
       </div>
     </div>
   `;
 }
 
-/**
- * Render Pipeline Stage Runner
- */
-export function renderPipelineRunner(activeStageIndex = 0) {
-  const steps = [
-    { title: 'Extraction', desc: 'Entity NLP' },
-    { title: 'Safety Triage', desc: 'suggest_next_step' },
-    { title: 'Medical Facts', desc: 'lookup_info' },
-    { title: 'Assembly', desc: 'Clinical Dossier' }
-  ];
-
-  const stepsHtml = steps.map((s, idx) => {
-    let state = '';
-    if (idx < activeStageIndex) state = 'done';
-    else if (idx === activeStageIndex) state = 'active';
-
-    return `
-      <div class="runner-step-cell ${state}">
-        <span class="step-cell-label">Stage 0${idx + 1}</span>
-        <span class="step-cell-desc">${s.title}</span>
-      </div>
-    `;
-  }).join('');
-
+function renderErrorCard(msg) {
   return `
-    <div class="pipeline-runner-box">
-      <div class="runner-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span class="pipeline-pulse-dot"></span>
-          <span class="runner-title">ReAct Clinical Intelligence Pipeline</span>
-        </div>
-        <span style="font-family: var(--font-mono); font-size: 0.68rem; color: var(--gold-400);">Executing...</span>
-      </div>
-      <div class="runner-steps-grid">
-        ${stepsHtml}
+    <div class="clinical-dossier-card" style="border-left: 4px solid var(--color-mod);">
+      <div class="dossier-tab-content" style="display: block; color: var(--color-mod); font-weight: 600;">
+        ⚠️ ${escapeHtml(msg || 'An error occurred during symptom intake.')}
       </div>
     </div>
   `;
-}
-
-/**
- * Render Error Card
- */
-function renderErrorCard(message) {
-  return `
-    <div class="clinical-dossier-card" style="padding: 20px; border-color: rgba(245, 158, 11, 0.3);">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 1.3rem;">ℹ️</span>
-        <span style="color: var(--platinum-200); font-size: 0.9rem;">${escapeHtml(message)}</span>
-      </div>
-    </div>
-  `;
-}
-
-/* ── Utility Functions ── */
-
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 function capitalize(str) {
   if (!str) return '';
   return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
