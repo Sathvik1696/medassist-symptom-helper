@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MedAssist — AI Clinical Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MedAssist — Clinical AI Assistant</title>
   <meta name="description" content="MedAssist is a minimal, safety-focused clinical AI workspace for intelligent symptom understanding and guidance.">
-  <meta name="theme-color" content="#0d9488">
+  <meta name="theme-color" content="#080A0D">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230d9488' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2319B7A5' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/></svg>">
 
   <!-- Google Fonts: Inter, JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -31,19 +31,19 @@
     <!-- Mobile Sidebar Backdrop Overlay -->
     <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
-    <!-- ── LEFT SIDEBAR ── -->
-    <aside class="app-sidebar" id="app-sidebar" aria-label="Session Navigation">
+    <!-- ── LEFT SIDEBAR (OBSIDIAN / GRAPHITE) ── -->
+    <aside class="app-sidebar" id="app-sidebar" aria-label="Consultation Navigation">
       
       <!-- Sidebar Header / Brand -->
       <div class="sidebar-brand">
         <div class="brand-symbol">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
           </svg>
         </div>
         <div class="brand-info">
           <span class="brand-name">MedAssist</span>
-          <span class="brand-sub">Clinical AI</span>
+          <span class="brand-sub">CLINICAL AI</span>
         </div>
         <button class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close sidebar">✕</button>
       </div>
@@ -51,7 +51,7 @@
       <!-- New Assessment CTA Button -->
       <div class="sidebar-action-wrap">
         <button class="btn-new-assessment" id="btn-new-assessment">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
@@ -59,9 +59,9 @@
         </button>
       </div>
 
-      <!-- Recent Conversations List -->
+      <!-- Recent Conversations List with Groupings -->
       <div class="sidebar-history-scroll" id="sidebar-history-container">
-        <div class="history-group-title">Recent Assessments</div>
+        <div class="history-group-header">RECENT</div>
         <div class="history-items-list" id="history-items-list">
           <!-- Populated dynamically by app.js from stored sessions -->
         </div>
@@ -69,8 +69,8 @@
 
       <!-- Sidebar Bottom Utilities -->
       <div class="sidebar-footer">
-        <button class="sidebar-footer-btn" id="btn-open-settings" title="Open Settings">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button class="sidebar-footer-btn" id="btn-open-settings" title="Settings">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
@@ -78,8 +78,8 @@
         </button>
 
         <button class="sidebar-footer-btn" id="btn-quick-theme-toggle" title="Toggle Theme">
-          <span id="theme-icon-indicator">🌙</span>
-          <span id="theme-text-indicator">Dark Theme</span>
+          <span id="theme-icon-indicator">☀️</span>
+          <span id="theme-text-indicator">Light Mode</span>
         </button>
 
         <button class="sidebar-footer-btn" id="btn-quick-haptics-toggle" title="Toggle Haptics">
@@ -93,11 +93,11 @@
     <!-- ── MAIN CONVERSATION WORKSPACE ── -->
     <main class="app-main">
       
-      <!-- Minimal Header Bar -->
+      <!-- Minimal Refined Header Bar -->
       <header class="workspace-top-bar">
         <div class="top-bar-left">
-          <button class="mobile-sidebar-trigger" id="mobile-sidebar-trigger" aria-label="Open sidebar menu">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button class="mobile-sidebar-trigger" id="mobile-sidebar-trigger" aria-label="Open navigation drawer">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="3" y1="12" x2="21" y2="12"></line>
               <line x1="3" y1="6" x2="21" y2="6"></line>
               <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -109,7 +109,7 @@
         </div>
 
         <div class="top-bar-right">
-          <!-- Subtle Status Dot -->
+          <!-- Subtle Status Indicator -->
           <div class="workspace-status-badge">
             <span class="status-pulse-dot"></span>
             <span>MedAssist Clinical Assistant</span>
@@ -117,7 +117,7 @@
 
           <!-- Settings Trigger -->
           <button class="top-bar-util-btn" id="top-settings-btn" title="Settings" aria-label="Settings">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
@@ -129,25 +129,29 @@
       <div class="conversation-scroll-area" id="conversation-scroll-area" role="log" aria-live="polite">
         <div class="conversation-centered-track" id="conversation-track">
           
-          <!-- Empty State (Shown when no conversation turns exist) -->
+          <!-- Refined Empty State -->
           <div class="empty-state-card" id="empty-state-card">
-            <div class="empty-state-symbol">🩺</div>
+            <div class="empty-state-symbol">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+            </div>
             <h1 class="empty-state-headline">How are you feeling today?</h1>
-            <p class="empty-state-sub">Describe what you're experiencing and I'll help you work through it with clinical guidance.</p>
+            <p class="empty-state-sub">Describe what you're experiencing and I'll help you work through it.</p>
 
-            <!-- Subtle Starter Prompts -->
+            <!-- 3 Subtle Suggestion Buttons -->
             <div class="starter-prompts-grid">
-              <button class="starter-prompt-btn" data-prompt="I've had a persistent throbbing headache on my left temple for three days...">
-                <span class="prompt-icon">💡</span>
-                <span>"I've had a headache for three days..."</span>
+              <button class="starter-prompt-btn" data-prompt="I've had a headache and persistent fatigue for the past two days...">
+                <span>Headache and fatigue</span>
+                <span class="prompt-arrow">→</span>
               </button>
-              <button class="starter-prompt-btn" data-prompt="Why do I feel dizzy and lightheaded when I stand up quickly?">
-                <span class="prompt-icon">💡</span>
-                <span>"Why do I feel dizzy when I stand up?"</span>
+              <button class="starter-prompt-btn" data-prompt="I have a persistent dry cough with throat scratchiness since last week...">
+                <span>Persistent cough</span>
+                <span class="prompt-arrow">→</span>
               </button>
-              <button class="starter-prompt-btn" data-prompt="I've been coughing with throat scratchiness and mild chills since last week...">
-                <span class="prompt-icon">💡</span>
-                <span>"I've been coughing since last week..."</span>
+              <button class="starter-prompt-btn" data-prompt="I feel dizzy and lightheaded whenever I stand up quickly...">
+                <span>Dizziness when standing</span>
+                <span class="prompt-arrow">→</span>
               </button>
             </div>
           </div>
@@ -160,21 +164,21 @@
         </div>
       </div>
 
-      <!-- Modern Minimal Input Area -->
+      <!-- Modern Elevated Input Dock Area -->
       <footer class="workspace-input-dock">
         <div class="dock-centered-wrapper">
           
-          <!-- Processing Status Capsule (Subtle, non-marketing) -->
+          <!-- Subtle Natural Processing Indicator -->
           <div class="processing-status-indicator" id="processing-status-indicator" style="display: none;">
             <span class="processing-spinner"></span>
             <span id="processing-status-text">Reviewing your symptoms...</span>
           </div>
 
-          <!-- Main Input Capsule -->
+          <!-- Elevated Input Capsule -->
           <div class="input-capsule-container">
             <!-- Voice Input Button -->
             <button class="input-tool-btn" id="voice-input-btn" title="Speak symptoms" aria-label="Voice input">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                 <line x1="12" y1="19" x2="12" y2="23"></line>
@@ -195,7 +199,7 @@
             <div class="input-actions-right">
               <span class="char-count-pill" id="char-count">0/1000</span>
               <button class="btn-send-message" id="send-btn" disabled title="Send message" aria-label="Send message">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <line x1="22" y1="2" x2="11" y2="13"></line>
                   <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                 </svg>
@@ -203,9 +207,9 @@
             </div>
           </div>
 
-          <!-- Discrete Medical Disclaimer Note -->
+          <!-- Discrete Educational Notice -->
           <div class="input-disclaimer-note">
-            MedAssist provides informational clinical guidance. Not a substitute for professional medical diagnosis.
+            MedAssist provides informational guidance and does not replace professional medical care.
           </div>
 
         </div>
@@ -231,11 +235,11 @@
         <div class="settings-section">
           <label class="settings-label">Appearance</label>
           <div class="theme-options-grid">
-            <button class="theme-choice-btn" data-set-theme="light">
-              <span>☀️</span> Light
-            </button>
             <button class="theme-choice-btn" data-set-theme="dark">
               <span>🌙</span> Dark
+            </button>
+            <button class="theme-choice-btn" data-set-theme="light">
+              <span>☀️</span> Light
             </button>
             <button class="theme-choice-btn" data-set-theme="system">
               <span>💻</span> System
@@ -262,7 +266,7 @@
           <div class="settings-toggle-row">
             <div>
               <strong class="settings-item-title">Session History</strong>
-              <span class="settings-item-sub" id="settings-session-count">0 recorded sessions</span>
+              <span class="settings-item-sub" id="settings-session-count">0 recorded consultations</span>
             </div>
             <button class="btn-danger-outline" id="btn-clear-all-sessions">Clear All</button>
           </div>
@@ -272,10 +276,10 @@
         <div class="settings-section">
           <strong class="settings-item-title">About MedAssist</strong>
           <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; line-height: 1.5;">
-            MedAssist is an intelligent clinical decision support assistant designed to help users organize symptom context, identify potential concerns, and navigate safe next steps.
+            MedAssist is an intelligent clinical decision support assistant designed to help organize symptom context, identify potential concerns, and navigate safe next steps.
           </p>
-          <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 8px;">
-            ⚠️ <em>Educational use only. Not for medical diagnosis or emergency treatment.</em>
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 8px;">
+            <em>Informational use only. Seek professional evaluation for medical diagnosis or emergencies.</em>
           </div>
         </div>
 
@@ -288,21 +292,20 @@
        ═══════════════════════════════════════════════════════════════════════ -->
   <div class="emergency-modal-backdrop" id="emergency-overlay" role="dialog" aria-modal="true" aria-labelledby="emergency-title">
     <div class="emergency-modal-card">
-      <div class="emergency-siren-badge">⚠ URGENT MEDICAL ADVISORY</div>
+      <div class="emergency-siren-badge">⚠ SEEK URGENT MEDICAL ATTENTION</div>
       
-      <h2 class="emergency-headline" id="emergency-title">Seek Urgent Medical Attention</h2>
+      <h2 class="emergency-headline" id="emergency-title">Urgent Medical Evaluation Required</h2>
       
       <p class="emergency-explanation">
-        The symptoms you've described may indicate a potentially serious condition requiring prompt professional clinical evaluation.
+        The symptoms you've described may indicate a potentially serious condition requiring immediate professional evaluation.
       </p>
 
       <div class="emergency-dial-grid">
-        <a href="tel:911" class="emergency-dial-btn" style="text-decoration: none;">🇺🇸 Call 911 (US)</a>
-        <a href="tel:112" class="emergency-dial-btn" style="text-decoration: none;">🇪🇺 Call 112 (EU/UK)</a>
+        <a href="tel:911" class="emergency-dial-btn" style="text-decoration: none;">Call Local Emergency (911 / 112)</a>
       </div>
 
       <button class="emergency-dismiss-action" id="emergency-dismiss">
-        I Understand — View Assessment Guidance
+        I Understand — View Informational Guidance
       </button>
     </div>
   </div>

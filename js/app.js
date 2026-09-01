@@ -218,18 +218,51 @@ function renderHistorySidebar() {
   historyItemsList.innerHTML = '';
 
   if (sessions.length === 0) {
-    historyItemsList.innerHTML = '<div style="font-size: 0.76rem; color: var(--text-muted); padding: 8px 10px;">No recent assessments</div>';
+    historyItemsList.innerHTML = '<div style="font-size: 0.74rem; color: var(--text-muted); padding: 6px 8px;">No recent assessments</div>';
     return;
   }
 
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yesterdayStart = todayStart - 86400000;
+
+  const groups = {
+    today: [],
+    yesterday: [],
+    earlier: []
+  };
+
   sessions.forEach(sess => {
-    const item = document.createElement('div');
-    item.className = `history-session-item ${sess.id === activeSessionId ? 'active' : ''}`;
-    item.textContent = sess.title || 'Consultation';
-    item.title = sess.title;
-    item.addEventListener('click', () => switchSession(sess.id));
-    historyItemsList.appendChild(item);
+    const createdTime = new Date(sess.createdAt || Date.now()).getTime();
+    if (createdTime >= todayStart) {
+      groups.today.push(sess);
+    } else if (createdTime >= yesterdayStart) {
+      groups.yesterday.push(sess);
+    } else {
+      groups.earlier.push(sess);
+    }
   });
+
+  const renderGroup = (title, items) => {
+    if (items.length === 0) return;
+    const groupHeading = document.createElement('div');
+    groupHeading.style.cssText = 'font-size: 0.65rem; color: var(--text-muted); padding: 8px 8px 3px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.06em;';
+    groupHeading.textContent = title;
+    historyItemsList.appendChild(groupHeading);
+
+    items.forEach(sess => {
+      const item = document.createElement('div');
+      item.className = `history-session-item ${sess.id === activeSessionId ? 'active' : ''}`;
+      item.textContent = sess.title || 'Consultation';
+      item.title = sess.title;
+      item.addEventListener('click', () => switchSession(sess.id));
+      historyItemsList.appendChild(item);
+    });
+  };
+
+  renderGroup('Today', groups.today);
+  renderGroup('Yesterday', groups.yesterday);
+  renderGroup('Earlier', groups.earlier);
 }
 
 function renderActiveSessionMessages() {
