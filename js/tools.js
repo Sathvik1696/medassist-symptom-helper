@@ -6,8 +6,8 @@
  * structured data that grounds the pipeline's output.
  */
 
-import { queryKnowledgeBase } from './knowledge.js';
-import { triageSymptoms } from './triage.js';
+import { queryKnowledgeBase } from './knowledge.js?v=4';
+import { triageSymptoms } from './triage.js?v=4';
 
 /**
  * lookup_info(symptom)
@@ -78,4 +78,17 @@ export function suggest_next_step(symptomDescription) {
     guidance: 'No emergency red flags detected. Safe to proceed with educational information and self-care guidance.',
     toolOutput: 'No emergency red flags detected. Symptoms appear non-emergent. Safe to provide educational information and home care suggestions.'
   };
+}
+
+/**
+ * executeTool dispatcher
+ */
+export function executeTool(toolName, args = {}) {
+  if (toolName === 'lookup_info') {
+    return lookup_info(args.query || args.symptom || '');
+  }
+  if (toolName === 'suggest_next_step') {
+    return suggest_next_step(args.symptom_text || args.symptom || '');
+  }
+  return { error: `Unknown tool: ${toolName}` };
 }

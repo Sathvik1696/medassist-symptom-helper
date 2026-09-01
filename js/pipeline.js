@@ -1,254 +1,229 @@
 /**
- * pipeline.js — MedAssist Clinical AI Orchestration Engine
+ * pipeline.js — MedAssist Structured Clinical Assessment Engine
  * 
  * Orchestrates:
- * 1. Deterministic Safety Circuit Breaker (suggest_next_step)
- * 2. Adaptive Context & Clinical Information Retrieval (lookup_info)
- * 3. Humanized, Context-Aware Clinical Synthesis (via Gemini API or localized engine)
- * 4. Multi-turn Session Memory Folding
+ * 1. Immediate Deterministic Red-Flag Triage (suggest_next_step)
+ * 2. Grounded Knowledge Retrieval (lookup_info)
+ * 3. Deep Contextual Clinical Assessment Synthesis (Gemini Live API or Local Clinical Engine)
  */
 
-import { executeTool } from './tools.js';
-import { GEMINI_CONFIG } from './config.js';
+import { executeTool } from './tools.js?v=4';
+import { GEMINI_CONFIG } from './config.js?v=4';
 
 /**
- * Main Pipeline Orchestrator (Async)
+ * Execute Full Structured Assessment Async
  */
-export async function executePipelineAsync(rawInput, chatHistory = [], options = {}) {
+export async function executeStructuredAssessmentAsync(assessmentData, options = {}) {
   const apiKey = options.apiKey || GEMINI_CONFIG.apiKey;
   const model = options.model || GEMINI_CONFIG.model;
 
-  // Step 1: Safety & Red Flag Triage
+  const rawInput = assessmentData.primarySymptom || '';
+
+  // 1. Deterministic Emergency Red Flag Circuit Breaker
   const triageResult = executeTool('suggest_next_step', { symptom_text: rawInput });
   if (triageResult && triageResult.isEmergency) {
     return {
       type: 'emergency',
       rawInput,
       triage: triageResult,
-      humanResponse: formatEmergencyResponse(triageResult)
+      assessmentData
     };
   }
 
-  // Step 2: Extract Entities & Knowledge Lookup
-  const intake = parseSymptomContext(rawInput, chatHistory);
+  // 2. Identify Primary Clinical Entities for Grounded Knowledge Retrieval
+  const detectedSymptoms = extractPrimarySymptoms(rawInput);
   const knowledgeEntries = [];
-  for (const sym of intake.symptoms) {
+  for (const sym of detectedSymptoms) {
     const k = executeTool('lookup_info', { query: sym });
-    if (k && !k.error) knowledgeEntries.push(k);
+    if (k && k.found && k.entries && k.entries.length > 0) {
+      knowledgeEntries.push(...k.entries);
+    } else if (k && !k.error && k.displayName) {
+      knowledgeEntries.push(k);
+    }
   }
 
-  // Step 3: Identify Missing Critical Clinical Context for Adaptive Follow-up
-  const followUpQuestions = generateAdaptiveFollowUps(intake, rawInput);
-
-  // Step 4: AI Synthesis (Gemini Live API or Local Clinical Engine)
-  let responseText = '';
+  // 3. Synthesize Structured Clinical Assessment
+  let reportData = null;
   if (apiKey && apiKey !== 'YOUR_GEMINI_API_KEY_HERE' && apiKey.length > 10) {
     try {
-      responseText = await callGeminiLiveApi(rawInput, intake, knowledgeEntries, chatHistory, followUpQuestions, apiKey, model);
+      reportData = await callGeminiStructuredApi(assessmentData, knowledgeEntries, apiKey, model);
     } catch (e) {
-      console.warn('Gemini API call failed, falling back to local synthesis engine:', e);
-      responseText = synthesizeHumanizedReport(intake, knowledgeEntries, followUpQuestions);
+      console.warn('Gemini API call failed, falling back to local clinical synthesis engine:', e);
+      reportData = synthesizeLocalStructuredReport(assessmentData, knowledgeEntries);
     }
   } else {
-    responseText = synthesizeHumanizedReport(intake, knowledgeEntries, followUpQuestions);
+    reportData = synthesizeLocalStructuredReport(assessmentData, knowledgeEntries);
   }
 
   return {
     type: 'normal',
     rawInput,
-    intake,
+    assessmentData,
     knowledge: knowledgeEntries,
-    followUpQuestions,
-    humanResponse: responseText
+    report: reportData
   };
 }
 
-export function executePipeline(rawInput, chatHistory = []) {
-  const triageResult = executeTool('suggest_next_step', { symptom_text: rawInput });
-  if (triageResult && triageResult.isEmergency) {
-    return {
-      type: 'emergency',
-      rawInput,
-      triage: triageResult,
-      humanResponse: formatEmergencyResponse(triageResult)
-    };
+/**
+ * Local Deterministic Structured Clinical Synthesizer
+ */
+export function synthesizeLocalStructuredReport(data, knowledge) {
+  const primarySymptom = data.primarySymptom || 'your reported symptoms';
+  const age = data.age || 'Not specified';
+  const duration = data.duration || 'Not specified';
+  const severity = data.severity || 'Moderate';
+  const location = data.location || data.symptomType || 'General';
+  const associated = (data.associatedSymptoms && data.associatedSymptoms.length > 0)
+    ? data.associatedSymptoms.join(', ')
+    : 'None reported';
+  const medHistory = data.medicalHistory || 'None reported';
+  const meds = data.medications || 'None reported';
+
+  // 1. Build Possible Explanations with "Why it fits" reasoning
+  const explanations = [];
+  if (knowledge && knowledge.length > 0) {
+    const primary = knowledge[0];
+    const primaryTitle = primary.condition || primary.displayName || 'Tension-type Pattern';
+    const causes = primary.causes || primary.commonCauses || ['muscle strain', 'stress or dehydration'];
+
+    explanations.push({
+      title: primaryTitle,
+      explanation: `Your reported ${duration.toLowerCase()} of ${severity.toLowerCase()} symptoms${location !== 'General' ? ' in the ' + location.toLowerCase() : ''} aligns with typical clinical presentations of ${primaryTitle.toLowerCase()}. Common non-emergent contributing factors include ${causes.slice(0, 2).join(' and ')}.`
+    });
+
+    if (knowledge.length > 1) {
+      const secondary = knowledge[1];
+      const secondaryTitle = secondary.condition || secondary.displayName || 'Secondary Pattern';
+      explanations.push({
+        title: secondaryTitle,
+        explanation: `Given associated factors (${associated.toLowerCase()}), secondary consideration is given to ${secondaryTitle.toLowerCase()}, which shares similar physiological characteristics.`
+      });
+    } else {
+      explanations.push({
+        title: 'Localized Musculoskeletal or Environmental Strain',
+        explanation: `Daily physical strain, ergonomic stress, dehydration, or environmental triggers frequently contribute to episodic discomfort in this region.`
+      });
+    }
+  } else {
+    explanations.push({
+      title: 'Non-Specific Symptom Pattern',
+      explanation: `Your reported presentation of ${primarySymptom} may reflect mild inflammatory response, temporary physiological fatigue, or minor localized strain.`
+    });
+    explanations.push({
+      title: 'Postural or Environmental Strain',
+      explanation: `Stress, hydration fluctuations, or ambient daily strain can contribute to persistent mild discomfort.`
+    });
   }
 
-  const intake = parseSymptomContext(rawInput, chatHistory);
-  const knowledgeEntries = [];
-  for (const sym of intake.symptoms) {
-    const k = executeTool('lookup_info', { query: sym });
-    if (k && !k.error) knowledgeEntries.push(k);
+  // 2. What You Can Do Now
+  const selfCare = [];
+  if (knowledge && knowledge.length > 0 && knowledge[0].selfCare && knowledge[0].selfCare.length > 0) {
+    knowledge[0].selfCare.slice(0, 3).forEach(sc => selfCare.push(sc));
+  } else {
+    selfCare.push('Rest in a quiet, comfortable environment away from direct screen glare or bright light.');
+    selfCare.push('Maintain steady hydration with water or electrolyte fluids throughout the day.');
+    selfCare.push('Apply a cool or warm compress to the affected area if comfortable.');
   }
 
-  const followUpQuestions = generateAdaptiveFollowUps(intake, rawInput);
-  const responseText = synthesizeHumanizedReport(intake, knowledgeEntries, followUpQuestions);
+  // 3. What to Watch For / Warning Signs
+  const warningSigns = [];
+  const rawWarns = (knowledge && knowledge.length > 0) ? (knowledge[0].seekCareIf || []) : [];
+  if (rawWarns.length > 0) {
+    rawWarns.slice(0, 3).forEach(w => warningSigns.push(w));
+  } else {
+    warningSigns.push('Symptoms progressively worsen or do not improve after 48–72 hours.');
+    warningSigns.push('Development of new systemic symptoms such as high fever, sudden vision changes, or severe pain.');
+    warningSigns.push('Onset of unexpected shortness of breath, dizziness, or localized numbness.');
+  }
+
+  // 4. Preparing for a Doctor Visit
+  const rawQuestions = (knowledge && knowledge.length > 0) ? (knowledge[0].doctorQuestions || []) : [];
+  const doctorPrep = {
+    mention: [
+      `Exact onset and progression (${duration} duration with ${severity.toLowerCase()} severity).`,
+      `Specific locations or triggers noticed (${location}).`,
+      `Any prior medical history (${medHistory}) or concurrent medications (${meds}).`
+    ],
+    questions: rawQuestions.length > 0 ? rawQuestions.slice(0, 3) : [
+      'What diagnostic evaluation or tests are appropriate for these symptoms?',
+      'Are there specific environmental or lifestyle triggers I should avoid?',
+      'At what point should I schedule a follow-up or seek emergency care?'
+    ]
+  };
 
   return {
-    type: 'normal',
-    rawInput,
-    intake,
-    knowledge: knowledgeEntries,
-    followUpQuestions,
-    humanResponse: responseText
+    summary: `You described experiencing ${primarySymptom} for ${duration} at ${severity.toLowerCase()} severity. Based on the clinical context collected, here is a structured evaluation of possible factors and recommended guidance.`,
+    intakeSummary: {
+      primarySymptom,
+      age,
+      duration,
+      severity,
+      location,
+      associated,
+      medHistory,
+      meds
+    },
+    explanations,
+    selfCare,
+    warningSigns,
+    doctorPrep
   };
 }
 
 /**
- * Humanized Clinical Report Synthesizer
+ * Live Google Gemini Structured API Call
  */
-function synthesizeHumanizedReport(intake, knowledge, followUps) {
-  const primarySymptom = intake.symptoms[0] || 'your reported symptoms';
-  const duration = intake.duration;
-  const isComplex = intake.symptoms.length > 1 || duration || intake.triggers.length > 0;
-
-  let out = '';
-
-  // 1. Empathetic Clinical Opening
-  if (duration && intake.triggers.length > 0) {
-    out += `Experiencing ${primarySymptom} for ${duration}, particularly after ${intake.triggers.join(' and ')}, provides valuable context for what might be happening.\n\n`;
-  } else if (duration) {
-    out += `${capitalize(duration)} of ${primarySymptom} is worth looking at in context to understand the likely factors and appropriate self-care.\n\n`;
-  } else {
-    out += `Thank you for sharing what you're experiencing. Here is what we know about ${primarySymptom} and helpful guidance for your next steps.\n\n`;
-  }
-
-  // 2. What Might Explain This
-  out += `### What might explain this\n`;
-  if (knowledge.length > 0) {
-    const primaryEntry = knowledge[0];
-    out += `This pattern is commonly associated with **${primaryEntry.displayName}**. In typical non-emergent presentations, frequent contributing factors include:\n`;
-    primaryEntry.commonCauses.slice(0, 3).forEach(c => {
-      out += `• ${c}\n`;
-    });
-    out += '\n';
-  } else {
-    out += `Based on your description, this could be related to local strain, mild inflammatory response, or environmental triggers.\n\n`;
-  }
-
-  // 3. What You Can Do Now (Actionable Protocol)
-  out += `### What you can do now\n`;
-  if (knowledge.length > 0) {
-    knowledge[0].selfCare.slice(0, 3).forEach(sc => {
-      out += `• ${sc}\n`;
-    });
-    out += '\n';
-  } else {
-    out += `• Rest in a calm, temperature-controlled environment.\n• Maintain adequate hydration with water or electrolyte fluids.\n• Monitor whether rest or gentle repositioning relieves the sensation.\n\n`;
-  }
-
-  // 4. Adaptive Follow-Up Questions (if context is missing)
-  if (followUps && followUps.length > 0) {
-    out += `### Helpful context to clarify\n`;
-    out += `To tailor this assessment more precisely, it would be helpful to know:\n`;
-    followUps.forEach(q => {
-      out += `• ${q}\n`;
-    });
-    out += '\n';
-  }
-
-  // 5. When to Seek Professional Attention
-  out += `### When to seek medical attention\n`;
-  if (knowledge.length > 0) {
-    out += `Schedule a consultation with a healthcare provider if:\n`;
-    knowledge[0].seekCareIf.slice(0, 2).forEach(sc => {
-      out += `• ${sc}\n`;
-    });
-  } else {
-    out += `• Symptoms progressively worsen over the next 48 hours.\n• You develop new systemic symptoms such as high fever, difficulty breathing, or severe pain.\n`;
-  }
-
-  return out;
-}
-
-/**
- * Adaptive Follow-Up Question Generator
- */
-function generateAdaptiveFollowUps(intake, rawInput) {
-  const questions = [];
-  const text = rawInput.toLowerCase();
-
-  // Missing Duration Check
-  if (!intake.duration) {
-    questions.push('Approximately how long or how many days have you had these symptoms?');
-  }
-
-  // Missing Severity / Fever Check
-  if (text.includes('fever') && !text.match(/\d+(\.\d+)?\s*(f|c|deg|degrees)/)) {
-    questions.push('Have you measured your body temperature, and if so, how high has it reached?');
-  }
-
-  // Headache Specific Follow-ups
-  if (text.includes('headache') || text.includes('migraine')) {
-    if (!text.includes('vision') && !text.includes('nausea') && !text.includes('light')) {
-      questions.push('Are you experiencing any nausea, sensitivity to light/sound, or changes in your vision?');
-    }
-  }
-
-  // Cough / Respiratory Specific Follow-ups
-  if (text.includes('cough') || text.includes('throat')) {
-    if (!text.includes('breath') && !text.includes('phlegm') && !text.includes('mucus')) {
-      questions.push('Is the cough dry or producing phlegm, and have you noticed any shortness of breath?');
-    }
-  }
-
-  // Dizziness Specific Follow-ups
-  if (text.includes('dizzy') || text.includes('vertigo') || text.includes('lightheaded')) {
-    if (!text.includes('stand') && !text.includes('water') && !text.includes('meal')) {
-      questions.push('Does the sensation occur mainly when standing up quickly, or is the room visibly spinning?');
-    }
-  }
-
-  return questions.slice(0, 2);
-}
-
-/**
- * Format Emergency Message
- */
-function formatEmergencyResponse(triage) {
-  return `### ⚠️ Immediate Medical Attention Recommended\n\nThe symptoms you've reported include potential emergency indicators (${triage.matchedFlags.map(f => f.pattern).join(', ')}).\n\nPlease seek prompt professional medical care or contact local emergency services (911 in the US / 112 in the UK & EU) right away.`;
-}
-
-/**
- * Live Google Gemini API Integration
- */
-async function callGeminiLiveApi(rawInput, intake, knowledge, chatHistory, followUps, apiKey, model) {
+async function callGeminiStructuredApi(data, knowledge, apiKey, model) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-  const systemInstruction = `You are MedAssist, a thoughtful, professional clinical AI assistant.
-Your goal is to provide warm, clear, structured, and medically safe guidance for non-emergent symptoms.
-Guidelines:
-1. Speak with natural clinical warmth, empathy, and professional clarity.
-2. Never claim to replace a doctor or give definitive medical diagnoses. Use safe non-diagnostic language ('may be associated with', 'could indicate', 'helpful next steps').
-3. Keep the response proportional: concise for simple questions, structured and thorough for complex multi-symptom descriptions.
-4. When relevant, format naturally with markdown headings (e.g. '### What might explain this', '### What you can do now', '### When to seek medical attention').
-5. If important clinical context is missing, ask 1 or 2 polite follow-up questions at the end.`;
+  const systemInstruction = `You are MedAssist, a professional clinical symptom assessment assistant.
+Your task is to analyze the patient's reported intake and generate a clear, structured, non-diagnostic clinical evaluation.
+Return ONLY valid JSON matching this exact schema:
+{
+  "summary": "Brief 1-2 sentence overview of the presentation.",
+  "intakeSummary": {
+    "primarySymptom": "string",
+    "age": "string",
+    "duration": "string",
+    "severity": "string",
+    "location": "string",
+    "associated": "string",
+    "medHistory": "string",
+    "meds": "string"
+  },
+  "explanations": [
+    { "title": "Condition Name", "explanation": "Detailed explanation of WHY this fits the reported context." }
+  ],
+  "selfCare": ["Action 1", "Action 2", "Action 3"],
+  "warningSigns": ["Warning 1", "Warning 2", "Warning 3"],
+  "doctorPrep": {
+    "mention": ["Detail to mention 1", "Detail to mention 2"],
+    "questions": ["Question for doctor 1", "Question for doctor 2"]
+  }
+}`;
 
-  const conversationPayload = [];
-  chatHistory.slice(-4).forEach(msg => {
-    conversationPayload.push({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
-    });
-  });
-
-  const promptText = `User Presentation: "${rawInput}"
-Extracted Context: Symptoms: [${intake.symptoms.join(', ')}], Duration: ${intake.duration || 'Unspecified'}, Severity: ${intake.severity || 'Unspecified'}, Triggers: [${intake.triggers.join(', ')}].
-Medical Reference Context: ${JSON.stringify(knowledge.map(k => ({ name: k.displayName, causes: k.commonCauses, selfCare: k.selfCare, seekCare: k.seekCareIf })))}
-Adaptive Clarifications: ${JSON.stringify(followUps)}`;
-
-  conversationPayload.push({
-    role: 'user',
-    parts: [{ text: promptText }]
-  });
+  const promptText = `Patient Intake:
+- Primary Complaint: "${data.primarySymptom}"
+- Age: ${data.age || 'Unspecified'}
+- Duration: ${data.duration || 'Unspecified'}
+- Severity: ${data.severity || 'Moderate'}
+- Specific Details/Location: ${data.location || data.symptomType || 'General'}
+- Associated Symptoms: ${JSON.stringify(data.associatedSymptoms || [])}
+- Medical History: ${data.medicalHistory || 'None'}
+- Current Medications: ${data.medications || 'None'}
+- Reference Clinical Knowledge: ${JSON.stringify(knowledge)}`;
 
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: conversationPayload,
+      contents: [{ role: 'user', parts: [{ text: promptText }] }],
       systemInstruction: { parts: [{ text: systemInstruction }] },
-      generationConfig: { temperature: 0.3, maxOutputTokens: 800 }
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 1200,
+        responseMimeType: "application/json"
+      }
     })
   });
 
@@ -256,66 +231,31 @@ Adaptive Clarifications: ${JSON.stringify(followUps)}`;
     throw new Error(`Gemini API returned HTTP ${response.status}`);
   }
 
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('Empty response from Gemini API');
-  return text;
+  const resJson = await response.json();
+  const rawText = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!rawText) throw new Error('Empty response from Gemini API');
+
+  return JSON.parse(rawText);
 }
 
 /**
- * Extract Clinical Context from Text & Session History
+ * Extract Primary Symptoms from Input Text
  */
-function parseSymptomContext(rawInput, chatHistory = []) {
-  const text = rawInput.toLowerCase();
-  const symptoms = new Set();
-  const triggers = [];
+function extractPrimarySymptoms(text) {
+  const clean = text.toLowerCase();
+  const symptoms = [];
 
   const KNOWN_SYMPTOMS = [
-    'headache', 'migraine', 'dizziness', 'lightheadedness', 'fever', 'cough',
-    'sore throat', 'chest pain', 'shortness of breath', 'fatigue', 'nausea',
-    'stomach pain', 'back pain', 'rash', 'joint pain', 'wheezing', 'congestion'
+    'headache', 'migraine', 'cough', 'dizziness', 'fever', 'sore throat',
+    'chest pain', 'shortness of breath', 'fatigue', 'nausea', 'stomach pain',
+    'abdominal pain', 'back pain', 'rash', 'joint pain', 'wheezing'
   ];
 
-  KNOWN_SYMPTOMS.forEach(sym => {
-    if (text.includes(sym)) symptoms.add(sym);
+  KNOWN_SYMPTOMS.forEach(s => {
+    if (clean.includes(s)) symptoms.push(s);
   });
 
-  // Fold previous symptoms from chat history
-  chatHistory.forEach(turn => {
-    const t = (turn.content || '').toLowerCase();
-    KNOWN_SYMPTOMS.forEach(sym => {
-      if (t.includes(sym)) symptoms.add(sym);
-    });
-  });
-
-  // Duration extraction
-  let duration = null;
-  const durMatch = text.match(/(\d+\s*(day|days|week|weeks|hour|hours|month|months))/);
-  if (durMatch) duration = durMatch[0];
-  else if (text.includes('today')) duration = 'Today';
-  else if (text.includes('yesterday')) duration = '1 day';
-  else if (text.includes('since last week')) duration = '1 week';
-
-  // Severity extraction
-  let severity = 'Moderate';
-  if (text.includes('mild') || text.includes('slight') || text.includes('minor')) severity = 'Mild';
-  else if (text.includes('severe') || text.includes('intense') || text.includes('unbearable')) severity = 'Severe';
-
-  // Triggers
-  if (text.includes('sun') || text.includes('heat')) triggers.push('sun/heat exposure');
-  if (text.includes('screen') || text.includes('computer')) triggers.push('screen strain');
-  if (text.includes('stress') || text.includes('anxiety')) triggers.push('stress');
-  if (text.includes('exercise') || text.includes('lifting')) triggers.push('physical exertion');
-
-  return {
-    symptoms: Array.from(symptoms),
-    duration,
-    severity,
-    triggers
-  };
+  return symptoms.length > 0 ? symptoms : ['headache'];
 }
 
-function capitalize(str) {
-  if (!str) return '';
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
+export { executeStructuredAssessmentAsync as executePipelineAsync, executeStructuredAssessmentAsync as executePipeline };

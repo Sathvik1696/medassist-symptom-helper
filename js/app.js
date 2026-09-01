@@ -1,31 +1,45 @@
 /**
- * app.js — MedAssist Clinical AI Workspace Controller
+ * app.js — MedAssist Clinical Symptom Assessment Tool Controller
  * 
  * Orchestrates:
- * - ChatGPT-style Multi-Session History & Persistence
- * - Minimal Medical AI Workspace & Dynamic Conversation Stream
- * - Real Light & Dark Theme Management (with System preference support)
- * - Subtle Natural Processing Indicator
- * - Web Speech API Voice Recognition & Audio Briefing Synthesizer
- * - Synthetic Tactile Acoustic Haptic Feedback
- * - Compact Settings Modal & Session Management
+ * 1. Initial Complaint Input & Emergency Circuit Breaker Check
+ * 2. Adaptive Multi-Step Clinical Assessment Question Stepper
+ * 3. Deep Structured Clinical Result Generation & Presentation
+ * 4. Assessment History Management & Sidebar Navigation
+ * 5. Theme Switching (Obsidian Dark / Light / System) & Acoustic Haptics
+ * 6. Voice Recognition & Speech Synthesis Briefing
  */
 
-import { executePipelineAsync } from './pipeline.js';
-import { renderUserMessage, renderAssistantMessage } from './renderer.js';
-import { GEMINI_CONFIG } from './config.js';
+import { executeStructuredAssessmentAsync } from './pipeline.js?v=4';
+import { renderStructuredAssessmentResult } from './renderer.js?v=4';
+import { executeTool } from './tools.js?v=4';
 
 /* ─────────────────────────────────────────────────────────────────────────
  * STATE MANAGEMENT
  * ───────────────────────────────────────────────────────────────────────── */
-let sessions = [];
-let activeSessionId = null;
-let isProcessing = false;
-let currentTheme = 'light';
+let storedAssessments = [];
+let activeAssessmentId = null;
+let currentTheme = 'dark';
 let isAudioHapticsEnabled = true;
 let isVoiceListening = false;
-let speechRecognitionInstance = null;
-let activeSpeakingMsgId = null;
+let activeSpeakingId = null;
+
+// Active assessment in-progress state
+let assessmentState = {
+  primarySymptom: '',
+  complaintType: 'general', // 'headache' | 'cough' | 'dizziness' | 'abdominal' | 'general'
+  currentStepIndex: 0,
+  steps: [],
+  answers: {
+    age: '25–40',
+    duration: '1–3 Days',
+    severity: 'Moderate',
+    location: '',
+    associatedSymptoms: [],
+    medicalHistory: 'None',
+    medications: 'None'
+  }
+};
 
 /* ─────────────────────────────────────────────────────────────────────────
  * DOM REFERENCES
@@ -38,18 +52,36 @@ const btnNewAssessment = document.getElementById('btn-new-assessment');
 const historyItemsList = document.getElementById('history-items-list');
 
 const sessionActiveTitle = document.getElementById('session-active-title');
-const conversationScrollArea = document.getElementById('conversation-scroll-area');
-const emptyStateCard = document.getElementById('empty-state-card');
-const messagesStream = document.getElementById('messages-stream');
 
-const userInput = document.getElementById('user-input');
-const sendBtn = document.getElementById('send-btn');
-const charCount = document.getElementById('char-count');
-const voiceInputBtn = document.getElementById('voice-input-btn');
-const processingStatus = document.getElementById('processing-status-indicator');
-const processingText = document.getElementById('processing-status-text');
+// Views
+const viewStart = document.getElementById('view-start');
+const viewQuestions = document.getElementById('view-questions');
+const viewLoading = document.getElementById('view-loading');
+const viewResult = document.getElementById('view-result');
+const viewEmergency = document.getElementById('view-emergency');
 
-// Settings & Utilities
+// Start view elements
+const initialSymptomInput = document.getElementById('initial-symptom-input');
+const btnStartAssessment = document.getElementById('btn-start-assessment');
+const startCharCount = document.getElementById('start-char-count');
+const startVoiceBtn = document.getElementById('start-voice-btn');
+
+// Stepper elements
+const stepCounterText = document.getElementById('step-counter-text');
+const stepTitleText = document.getElementById('step-title-text');
+const progressTrackFill = document.getElementById('progress-track-fill');
+const questionStepContent = document.getElementById('question-step-content');
+const btnStepBack = document.getElementById('btn-step-back');
+const btnStepNext = document.getElementById('btn-step-next');
+
+// Result elements
+const resultContentContainer = document.getElementById('result-content-container');
+
+// Emergency elements
+const emergencyFlagDesc = document.getElementById('emergency-flag-desc');
+const btnEmergencyRestart = document.getElementById('btn-emergency-restart');
+
+// Settings & Preferences
 const btnOpenSettings = document.getElementById('btn-open-settings');
 const topSettingsBtn = document.getElementById('top-settings-btn');
 const settingsModalBackdrop = document.getElementById('settings-modal-backdrop');
@@ -66,8 +98,6 @@ const btnQuickHapticsToggle = document.getElementById('btn-quick-haptics-toggle'
 const hapticsIconIndicator = document.getElementById('haptics-icon-indicator');
 const hapticsTextIndicator = document.getElementById('haptics-text-indicator');
 
-const emergencyOverlay = document.getElementById('emergency-overlay');
-const emergencyDismiss = document.getElementById('emergency-dismiss');
 const luxuryToast = document.getElementById('luxury-toast');
 const cursorSpotlight = document.getElementById('cursor-spotlight');
 
@@ -75,24 +105,55 @@ const cursorSpotlight = document.getElementById('cursor-spotlight');
  * INITIALIZATION
  * ───────────────────────────────────────────────────────────────────────── */
 function init() {
-  loadStoredPreferences();
+  loadPreferences();
   initTheme();
-  initVoiceRecognition();
   initCursorSpotlight();
-  loadSessions();
+  initVoiceRecognition();
+  loadStoredAssessments();
 
-  // Bind Event Listeners
-  sendBtn.addEventListener('click', handleSendMessage);
-  userInput.addEventListener('keydown', handleKeyDown);
-  userInput.addEventListener('input', handleInputChange);
-  btnNewAssessment.addEventListener('click', createNewAssessment);
+  // Event Listeners
+  if (initialSymptomInput) {
+    initialSymptomInput.addEventListener('input', handleInitialInputChange);
+    initialSymptomInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (initialSymptomInput.value.trim().length > 0) {
+          startGuidedAssessment();
+        }
+      }
+    });
+  }
 
-  // Mobile Sidebar
+  if (btnStartAssessment) btnStartAssessment.addEventListener('click', startGuidedAssessment);
+  if (btnNewAssessment) btnNewAssessment.addEventListener('click', resetToStartScreen);
+
+  // Stepper buttons
+  if (btnStepBack) btnStepBack.addEventListener('click', handleStepBack);
+  if (btnStepNext) btnStepNext.addEventListener('click', handleStepNext);
+
+  // Quick starter chips
+  document.querySelectorAll('.quick-chip-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sym = btn.getAttribute('data-symptom');
+      if (sym && initialSymptomInput) {
+        playAcousticHaptic('click');
+        initialSymptomInput.value = sym;
+        handleInitialInputChange();
+        startGuidedAssessment();
+      }
+    });
+  });
+
+  // Emergency restart
+  if (btnEmergencyRestart) {
+    btnEmergencyRestart.addEventListener('click', resetToStartScreen);
+  }
+
+  // Sidebar & Settings triggers
   if (mobileSidebarTrigger) mobileSidebarTrigger.addEventListener('click', openMobileSidebar);
   if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', closeMobileSidebar);
   if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeMobileSidebar);
 
-  // Settings
   if (btnOpenSettings) btnOpenSettings.addEventListener('click', openSettings);
   if (topSettingsBtn) topSettingsBtn.addEventListener('click', openSettings);
   if (settingsCloseBtn) settingsCloseBtn.addEventListener('click', closeSettings);
@@ -102,21 +163,19 @@ function init() {
     });
   }
 
-  // Theme Buttons in Settings
+  // Theme controls
   document.querySelectorAll('[data-set-theme]').forEach(btn => {
     btn.addEventListener('click', () => {
       setTheme(btn.getAttribute('data-set-theme'));
     });
   });
 
-  // Quick Sidebar Theme Toggle
   if (btnQuickThemeToggle) {
     btnQuickThemeToggle.addEventListener('click', () => {
       setTheme(currentTheme === 'dark' ? 'light' : 'dark');
     });
   }
 
-  // Haptics Toggles
   if (btnQuickHapticsToggle) {
     btnQuickHapticsToggle.addEventListener('click', toggleAudioHaptics);
   }
@@ -129,95 +188,441 @@ function init() {
   }
 
   if (btnClearAllSessions) {
-    btnClearAllSessions.addEventListener('click', clearAllSessions);
+    btnClearAllSessions.addEventListener('click', clearAllStoredAssessments);
   }
 
-  // Starter Prompt Chips
-  document.querySelectorAll('.starter-prompt-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const prompt = btn.getAttribute('data-prompt');
-      if (prompt) {
-        playAcousticHaptic('click');
-        userInput.value = prompt;
-        handleInputChange();
-        handleSendMessage();
+  // Initial screen
+  resetToStartScreen();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * ASSESSMENT FLOW ENGINE
+ * ───────────────────────────────────────────────────────────────────────── */
+function startGuidedAssessment() {
+  const text = initialSymptomInput.value.trim();
+  if (!text) return;
+
+  playAcousticHaptic('click');
+
+  // 1. Immediate Emergency Check
+  const triage = executeTool('suggest_next_step', { symptom_text: text });
+  if (triage && triage.isEmergency) {
+    showEmergencyScreen(triage);
+    return;
+  }
+
+  // 2. Setup Assessment State & Question Schema
+  const complaintType = determineComplaintType(text);
+  assessmentState = {
+    primarySymptom: text,
+    complaintType,
+    currentStepIndex: 0,
+    steps: buildQuestionSteps(complaintType, text),
+    answers: {
+      primarySymptom: text,
+      age: '25–40',
+      duration: '1–3 Days',
+      severity: 'Moderate',
+      location: getDefaultLocation(complaintType),
+      associatedSymptoms: [],
+      medicalHistory: 'None',
+      medications: 'None'
+    }
+  };
+
+  sessionActiveTitle.textContent = summarizeTitle(text);
+  renderCurrentQuestionStep();
+  switchView('questions');
+}
+
+function determineComplaintType(text) {
+  const t = text.toLowerCase();
+  if (t.includes('headache') || t.includes('migraine') || t.includes('head pain')) return 'headache';
+  if (t.includes('cough') || t.includes('sore throat') || t.includes('congestion')) return 'cough';
+  if (t.includes('dizzy') || t.includes('dizziness') || t.includes('vertigo') || t.includes('lightheaded')) return 'dizziness';
+  if (t.includes('stomach') || t.includes('abdominal') || t.includes('belly') || t.includes('cramp') || t.includes('nausea')) return 'abdominal';
+  return 'general';
+}
+
+function getDefaultLocation(type) {
+  if (type === 'headache') return 'Forehead / Temples';
+  if (type === 'cough') return 'Dry / Irritated Airways';
+  if (type === 'dizziness') return 'Positional (Standing up)';
+  if (type === 'abdominal') return 'Upper Abdomen / Stomach';
+  return 'General';
+}
+
+function buildQuestionSteps(type, text) {
+  return [
+    {
+      id: 'step_basic',
+      title: 'Basic Information & Onset',
+      render: (answers) => `
+        <div class="question-item-block">
+          <label class="question-item-title">How old are you?</label>
+          <div class="choice-pill-grid">
+            ${['Under 18', '18–35', '36–55', '56+'].map(a => `
+              <button type="button" class="choice-pill-btn ${answers.age === a ? 'active' : ''}" onclick="window.medassistSetAnswer('age', '${a}')">${a}</button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="question-item-block" style="margin-top: 18px;">
+          <label class="question-item-title">How long have you been experiencing this?</label>
+          <div class="choice-pill-grid">
+            ${['< 24 Hours', '1–3 Days', '4–7 Days', '1+ Weeks'].map(d => `
+              <button type="button" class="choice-pill-btn ${answers.duration === d ? 'active' : ''}" onclick="window.medassistSetAnswer('duration', '${d}')">${d}</button>
+            `).join('')}
+          </div>
+        </div>
+      `
+    },
+    {
+      id: 'step_characteristics',
+      title: 'Severity & Specific Pattern',
+      render: (answers) => {
+        let specificQuestionHtml = '';
+        if (type === 'headache') {
+          specificQuestionHtml = `
+            <div class="question-item-block" style="margin-top: 18px;">
+              <label class="question-item-title">Where is the headache localized?</label>
+              <div class="choice-pill-grid">
+                ${['Forehead / Temples', 'One Side / Temple', 'Back of Head / Neck', 'Band around Head'].map(loc => `
+                  <button type="button" class="choice-pill-btn ${answers.location === loc ? 'active' : ''}" onclick="window.medassistSetAnswer('location', '${loc}')">${loc}</button>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        } else if (type === 'cough') {
+          specificQuestionHtml = `
+            <div class="question-item-block" style="margin-top: 18px;">
+              <label class="question-item-title">What type of cough are you experiencing?</label>
+              <div class="choice-pill-grid">
+                ${['Dry & Hacking', 'Wet with Phlegm', 'Throat Tickle', 'Chest Tightness'].map(loc => `
+                  <button type="button" class="choice-pill-btn ${answers.location === loc ? 'active' : ''}" onclick="window.medassistSetAnswer('location', '${loc}')">${loc}</button>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        } else if (type === 'dizziness') {
+          specificQuestionHtml = `
+            <div class="question-item-block" style="margin-top: 18px;">
+              <label class="question-item-title">What best describes the sensation?</label>
+              <div class="choice-pill-grid">
+                ${['Lightheaded on standing', 'Room spinning (Vertigo)', 'Unsteadiness', 'Faint sensation'].map(loc => `
+                  <button type="button" class="choice-pill-btn ${answers.location === loc ? 'active' : ''}" onclick="window.medassistSetAnswer('location', '${loc}')">${loc}</button>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        } else {
+          specificQuestionHtml = `
+            <div class="question-item-block" style="margin-top: 18px;">
+              <label class="question-item-title">How is this affecting your day?</label>
+              <div class="choice-pill-grid">
+                ${['Disrupting daily tasks', 'Mild discomfort', 'Restricting focus', 'Intermittent discomfort'].map(loc => `
+                  <button type="button" class="choice-pill-btn ${answers.location === loc ? 'active' : ''}" onclick="window.medassistSetAnswer('location', '${loc}')">${loc}</button>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="question-item-block">
+            <label class="question-item-title">How severe are your symptoms?</label>
+            <div class="choice-pill-grid">
+              ${['Mild', 'Moderate', 'Severe'].map(s => `
+                <button type="button" class="choice-pill-btn ${answers.severity === s ? 'active' : ''}" onclick="window.medassistSetAnswer('severity', '${s}')">${s}</button>
+              `).join('')}
+            </div>
+          </div>
+          ${specificQuestionHtml}
+        `;
       }
-    });
+    },
+    {
+      id: 'step_history',
+      title: 'Associated Factors & Medical History',
+      render: (answers) => {
+        const associatedOptions = getAssociatedOptions(type);
+        return `
+          <div class="question-item-block">
+            <label class="question-item-title">Are you experiencing any of these associated symptoms?</label>
+            <span class="question-item-sub">Select all that apply</span>
+            <div class="tags-chip-row">
+              ${associatedOptions.map(opt => `
+                <button type="button" class="tag-select-chip ${(answers.associatedSymptoms || []).includes(opt) ? 'active' : ''}" onclick="window.medassistToggleAssociated('${opt}')">${opt}</button>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="question-item-block" style="margin-top: 18px;">
+            <label class="question-item-title">Do you have any existing medical conditions?</label>
+            <div class="choice-pill-grid">
+              ${['None', 'Hypertension / Heart', 'Asthma / Respiratory', 'Migraine History', 'Diabetes'].map(h => `
+                <button type="button" class="choice-pill-btn ${answers.medicalHistory === h ? 'active' : ''}" onclick="window.medassistSetAnswer('medicalHistory', '${h}')">${h}</button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+    }
+  ];
+}
+
+function getAssociatedOptions(type) {
+  if (type === 'headache') return ['Fatigue', 'Sensitivity to Light', 'Mild Nausea', 'Neck Tension', 'Screen Strain', 'None'];
+  if (type === 'cough') return ['Low-grade Fever', 'Sore Throat', 'Nasal Congestion', 'Body Aches', 'Fatigue', 'None'];
+  if (type === 'dizziness') return ['Dehydration', 'Skipped Meal', 'Poor Sleep', 'Mild Nausea', 'Fatigue', 'None'];
+  if (type === 'abdominal') return ['Mild Nausea', 'Bloating', 'Loss of Appetite', 'Fatigue', 'None'];
+  return ['Fatigue', 'Mild Fever', 'Muscle Soreness', 'Poor Sleep', 'Stress', 'None'];
+}
+
+// Global hook for inline onclick handlers
+window.medassistSetAnswer = function(field, value) {
+  playAcousticHaptic('click');
+  assessmentState.answers[field] = value;
+  renderCurrentQuestionStep();
+};
+
+window.medassistToggleAssociated = function(value) {
+  playAcousticHaptic('click');
+  let current = assessmentState.answers.associatedSymptoms || [];
+  if (value === 'None') {
+    current = ['None'];
+  } else {
+    current = current.filter(item => item !== 'None');
+    if (current.includes(value)) {
+      current = current.filter(item => item !== value);
+    } else {
+      current.push(value);
+    }
+  }
+  assessmentState.answers.associatedSymptoms = current;
+  renderCurrentQuestionStep();
+};
+
+function renderCurrentQuestionStep() {
+  const step = assessmentState.steps[assessmentState.currentStepIndex];
+  if (!step) return;
+
+  const totalSteps = assessmentState.steps.length;
+  const currentNum = assessmentState.currentStepIndex + 1;
+
+  stepCounterText.textContent = `STEP ${currentNum} OF ${totalSteps}`;
+  stepTitleText.textContent = step.title;
+  progressTrackFill.style.width = `${(currentNum / totalSteps) * 100}%`;
+
+  questionStepContent.innerHTML = step.render(assessmentState.answers);
+
+  // Stepper navigation buttons
+  btnStepBack.style.visibility = assessmentState.currentStepIndex > 0 ? 'visible' : 'hidden';
+  btnStepNext.querySelector('span').textContent = currentNum === totalSteps ? 'Generate Assessment' : 'Continue';
+}
+
+function handleStepBack() {
+  if (assessmentState.currentStepIndex > 0) {
+    playAcousticHaptic('click');
+    assessmentState.currentStepIndex--;
+    renderCurrentQuestionStep();
+  }
+}
+
+async function handleStepNext() {
+  playAcousticHaptic('click');
+  const totalSteps = assessmentState.steps.length;
+
+  if (assessmentState.currentStepIndex < totalSteps - 1) {
+    assessmentState.currentStepIndex++;
+    renderCurrentQuestionStep();
+  } else {
+    // Final Step -> Generate Structured Result
+    await generateAssessmentResult();
+  }
+}
+
+async function generateAssessmentResult() {
+  switchView('loading');
+
+  await delay(500);
+
+  // Execute clinical assessment pipeline
+  const result = await executeStructuredAssessmentAsync(assessmentState.answers);
+
+  if (result.type === 'emergency') {
+    showEmergencyScreen(result.triage);
+    return;
+  }
+
+  // Render complete structured result
+  const dossierId = 'assessment_' + Date.now();
+  const html = renderStructuredAssessmentResult(result, dossierId);
+  resultContentContainer.innerHTML = html;
+
+  // Bind result actions (Copy, Print, Listen, Restart)
+  bindResultActions(dossierId, result);
+
+  // Save to stored assessments
+  saveCompletedAssessment({
+    id: dossierId,
+    title: summarizeTitle(assessmentState.primarySymptom),
+    createdAt: new Date().toISOString(),
+    result
   });
 
-  // Emergency Modal Dismiss
-  if (emergencyDismiss) {
-    emergencyDismiss.addEventListener('click', () => {
-      emergencyOverlay.classList.remove('open');
+  playAcousticHaptic('complete');
+  switchView('result');
+}
+
+function bindResultActions(dossierId, result) {
+  const container = document.getElementById(dossierId);
+  if (!container) return;
+
+  const copyBtn = container.querySelector('.btn-copy-assessment');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
       playAcousticHaptic('click');
+      const text = resultContentContainer.innerText;
+      navigator.clipboard.writeText(text).then(() => showToast('Assessment copied to clipboard'));
     });
   }
 
-  // Set Initial View
-  if (sessions.length > 0) {
-    switchSession(sessions[0].id);
-  } else {
-    createNewAssessment();
+  const printBtn = container.querySelector('.btn-print-assessment');
+  if (printBtn) {
+    printBtn.addEventListener('click', () => {
+      playAcousticHaptic('click');
+      window.print();
+    });
+  }
+
+  const speakBtn = container.querySelector('.btn-speak-assessment');
+  if (speakBtn) {
+    speakBtn.addEventListener('click', () => {
+      playAcousticHaptic('click');
+      toggleSpeechBriefing(dossierId, result, speakBtn);
+    });
+  }
+
+  const restartBtn = document.getElementById('btn-restart-assessment-bottom');
+  if (restartBtn) {
+    restartBtn.addEventListener('click', resetToStartScreen);
   }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
- * SESSION HISTORY & PERSISTENCE (CHATGPT-STYLE)
+ * SPEECH SYNTHESIS & VOICE INPUT
  * ───────────────────────────────────────────────────────────────────────── */
-function loadSessions() {
+function toggleSpeechBriefing(dossierId, result, buttonEl) {
+  if (!('speechSynthesis' in window)) {
+    showToast('Speech synthesis not supported in this browser.');
+    return;
+  }
+
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    if (activeSpeakingId === dossierId) {
+      activeSpeakingId = null;
+      buttonEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> <span>Listen</span>`;
+      return;
+    }
+  }
+
+  const r = result.report || {};
+  const explanations = (r.explanations || []).map(e => `${e.title}: ${e.explanation}`).join('. ');
+  const care = (r.selfCare || []).join('. ');
+  const script = `Clinical Assessment Summary. ${r.summary || ''}. Possible Explanations: ${explanations}. Recommended Protocol: ${care}.`;
+
+  const utterance = new SpeechSynthesisUtterance(script);
+  utterance.rate = 0.95;
+  utterance.pitch = 1.0;
+
+  activeSpeakingId = dossierId;
+  buttonEl.innerHTML = `<span>⏹️ Stop</span>`;
+
+  utterance.onend = () => {
+    activeSpeakingId = null;
+    buttonEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> <span>Listen</span>`;
+  };
+
+  window.speechSynthesis.speak(utterance);
+}
+
+function initVoiceRecognition() {
+  if (!startVoiceBtn) return;
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRec) {
+    startVoiceBtn.style.display = 'none';
+    return;
+  }
+
+  const rec = new SpeechRec();
+  rec.continuous = false;
+  rec.lang = 'en-US';
+
+  rec.onstart = () => {
+    isVoiceListening = true;
+    startVoiceBtn.classList.add('listening');
+    showToast('🎙️ Listening...');
+  };
+
+  rec.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    if (transcript && initialSymptomInput) {
+      initialSymptomInput.value = initialSymptomInput.value ? `${initialSymptomInput.value} ${transcript}` : transcript;
+      handleInitialInputChange();
+    }
+  };
+
+  rec.onerror = () => {
+    isVoiceListening = false;
+    startVoiceBtn.classList.remove('listening');
+  };
+
+  rec.onend = () => {
+    isVoiceListening = false;
+    startVoiceBtn.classList.remove('listening');
+  };
+
+  startVoiceBtn.addEventListener('click', () => {
+    if (isVoiceListening) {
+      rec.stop();
+    } else {
+      rec.start();
+    }
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * ASSESSMENT HISTORY & PERSISTENCE
+ * ───────────────────────────────────────────────────────────────────────── */
+function loadStoredAssessments() {
   try {
-    const saved = localStorage.getItem('medassist_sessions_v2');
-    sessions = saved ? JSON.parse(saved) : [];
+    const saved = localStorage.getItem('medassist_assessments_v3');
+    storedAssessments = saved ? JSON.parse(saved) : [];
   } catch (e) {
-    sessions = [];
+    storedAssessments = [];
   }
   renderHistorySidebar();
   updateSettingsSessionCount();
 }
 
-function saveSessions() {
+function saveCompletedAssessment(assessmentObj) {
+  storedAssessments.unshift(assessmentObj);
+  if (storedAssessments.length > 25) storedAssessments.pop();
   try {
-    localStorage.setItem('medassist_sessions_v2', JSON.stringify(sessions));
+    localStorage.setItem('medassist_assessments_v3', JSON.stringify(storedAssessments));
   } catch (e) {}
   renderHistorySidebar();
   updateSettingsSessionCount();
-}
-
-function createNewAssessment() {
-  playAcousticHaptic('click');
-  const newSession = {
-    id: 'session_' + Date.now(),
-    title: 'New Consultation',
-    createdAt: new Date().toISOString(),
-    messages: []
-  };
-
-  sessions.unshift(newSession);
-  activeSessionId = newSession.id;
-  saveSessions();
-
-  renderActiveSessionMessages();
-  closeMobileSidebar();
-  userInput.focus();
-}
-
-function switchSession(sessionId) {
-  playAcousticHaptic('click');
-  activeSessionId = sessionId;
-  renderHistorySidebar();
-  renderActiveSessionMessages();
-  closeMobileSidebar();
-}
-
-function getActiveSession() {
-  return sessions.find(s => s.id === activeSessionId);
 }
 
 function renderHistorySidebar() {
   if (!historyItemsList) return;
   historyItemsList.innerHTML = '';
 
-  if (sessions.length === 0) {
+  if (storedAssessments.length === 0) {
     historyItemsList.innerHTML = '<div style="font-size: 0.74rem; color: var(--text-muted); padding: 6px 8px;">No recent assessments</div>';
     return;
   }
@@ -226,37 +631,29 @@ function renderHistorySidebar() {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const yesterdayStart = todayStart - 86400000;
 
-  const groups = {
-    today: [],
-    yesterday: [],
-    earlier: []
-  };
+  const groups = { today: [], yesterday: [], earlier: [] };
 
-  sessions.forEach(sess => {
-    const createdTime = new Date(sess.createdAt || Date.now()).getTime();
-    if (createdTime >= todayStart) {
-      groups.today.push(sess);
-    } else if (createdTime >= yesterdayStart) {
-      groups.yesterday.push(sess);
-    } else {
-      groups.earlier.push(sess);
-    }
+  storedAssessments.forEach(item => {
+    const t = new Date(item.createdAt || Date.now()).getTime();
+    if (t >= todayStart) groups.today.push(item);
+    else if (t >= yesterdayStart) groups.yesterday.push(item);
+    else groups.earlier.push(item);
   });
 
-  const renderGroup = (title, items) => {
-    if (items.length === 0) return;
-    const groupHeading = document.createElement('div');
-    groupHeading.style.cssText = 'font-size: 0.65rem; color: var(--text-muted); padding: 8px 8px 3px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.06em;';
-    groupHeading.textContent = title;
-    historyItemsList.appendChild(groupHeading);
+  const renderGroup = (label, list) => {
+    if (list.length === 0) return;
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size: 0.64rem; color: var(--text-muted); padding: 8px 8px 2px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.06em;';
+    h.textContent = label;
+    historyItemsList.appendChild(h);
 
-    items.forEach(sess => {
-      const item = document.createElement('div');
-      item.className = `history-session-item ${sess.id === activeSessionId ? 'active' : ''}`;
-      item.textContent = sess.title || 'Consultation';
-      item.title = sess.title;
-      item.addEventListener('click', () => switchSession(sess.id));
-      historyItemsList.appendChild(item);
+    list.forEach(item => {
+      const el = document.createElement('div');
+      el.className = `history-session-item ${item.id === activeAssessmentId ? 'active' : ''}`;
+      el.textContent = item.title;
+      el.title = item.title;
+      el.addEventListener('click', () => loadPreviousAssessment(item));
+      historyItemsList.appendChild(el);
     });
   };
 
@@ -265,308 +662,118 @@ function renderHistorySidebar() {
   renderGroup('Earlier', groups.earlier);
 }
 
-function renderActiveSessionMessages() {
-  const session = getActiveSession();
-  if (!session) return;
-
-  sessionActiveTitle.textContent = session.title || 'New Consultation';
-  messagesStream.innerHTML = '';
-
-  if (session.messages.length === 0) {
-    emptyStateCard.style.display = 'block';
-    messagesStream.style.display = 'none';
-  } else {
-    emptyStateCard.style.display = 'none';
-    messagesStream.style.display = 'flex';
-
-    session.messages.forEach(msg => {
-      if (msg.role === 'user') {
-        messagesStream.insertAdjacentHTML('beforeend', renderUserMessage(msg.content));
-      } else {
-        const msgId = 'msg-' + (msg.timestamp || Date.now());
-        const html = renderAssistantMessage({
-          type: msg.type || 'normal',
-          humanResponse: msg.content,
-          triage: msg.triage
-        }, msgId);
-        messagesStream.insertAdjacentHTML('beforeend', html);
-        bindMessageActions(msgId, msg.content);
-      }
-    });
-
-    conversationScrollArea.scrollTop = conversationScrollArea.scrollHeight;
-  }
-}
-
-function updateSessionTitleFromInput(session, text) {
-  if (session.title === 'New Consultation' || !session.title) {
-    let clean = text.replace(/^(i have|i've had|i am experiencing|experiencing|my)\s+/i, '');
-    clean = clean.charAt(0).toUpperCase() + clean.slice(1);
-    if (clean.length > 28) clean = clean.substring(0, 26) + '...';
-    session.title = clean;
-  }
-}
-
-function clearAllSessions() {
+function loadPreviousAssessment(item) {
   playAcousticHaptic('click');
-  sessions = [];
-  activeSessionId = null;
-  localStorage.removeItem('medassist_sessions_v2');
-  createNewAssessment();
-  showToast('All consultation history cleared');
+  activeAssessmentId = item.id;
+  sessionActiveTitle.textContent = item.title;
+
+  const html = renderStructuredAssessmentResult(item.result, item.id);
+  resultContentContainer.innerHTML = html;
+  bindResultActions(item.id, item.result);
+
+  renderHistorySidebar();
+  closeMobileSidebar();
+  switchView('result');
+}
+
+function clearAllStoredAssessments() {
+  playAcousticHaptic('click');
+  storedAssessments = [];
+  activeAssessmentId = null;
+  localStorage.removeItem('medassist_assessments_v3');
+  renderHistorySidebar();
+  updateSettingsSessionCount();
+  resetToStartScreen();
+  showToast('Assessment history cleared');
 }
 
 function updateSettingsSessionCount() {
   if (settingsSessionCount) {
-    settingsSessionCount.textContent = `${sessions.length} recorded consultation(s)`;
+    settingsSessionCount.textContent = `${storedAssessments.length} recorded assessment(s)`;
   }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
- * CONVERSATION & PIPELINE EXECUTION
+ * VIEW SWITCHING & UI HELPERS
  * ───────────────────────────────────────────────────────────────────────── */
-async function handleSendMessage() {
-  const text = userInput.value.trim();
-  if (!text || isProcessing) return;
+function switchView(viewName) {
+  [viewStart, viewQuestions, viewLoading, viewResult, viewEmergency].forEach(v => {
+    if (v) v.style.display = 'none';
+  });
 
-  const session = getActiveSession();
-  if (!session) return;
+  if (viewName === 'start' && viewStart) viewStart.style.display = 'flex';
+  if (viewName === 'questions' && viewQuestions) viewQuestions.style.display = 'flex';
+  if (viewName === 'loading' && viewLoading) viewLoading.style.display = 'flex';
+  if (viewName === 'result' && viewResult) viewResult.style.display = 'flex';
+  if (viewName === 'emergency' && viewEmergency) viewEmergency.style.display = 'flex';
+}
 
+function resetToStartScreen() {
   playAcousticHaptic('click');
-  userInput.value = '';
-  handleInputChange();
-
-  // 1. Append User Message to UI & Session State
-  updateSessionTitleFromInput(session, text);
-  session.messages.push({
-    role: 'user',
-    content: text,
-    timestamp: Date.now()
-  });
-
-  emptyStateCard.style.display = 'none';
-  messagesStream.style.display = 'flex';
-  messagesStream.insertAdjacentHTML('beforeend', renderUserMessage(text));
-  conversationScrollArea.scrollTop = conversationScrollArea.scrollHeight;
-
-  // 2. Animate Processing Indicator
-  isProcessing = true;
-  sendBtn.disabled = true;
-  userInput.disabled = true;
-  showProcessingIndicator(true, 'Reviewing your symptoms...');
-
-  await delay(400);
-  setProcessingText('Checking relevant information...');
-
-  await delay(450);
-  setProcessingText('Preparing guidance...');
-
-  // 3. Execute Clinical Pipeline
-  const historyTurns = session.messages.filter(m => m.role === 'user');
-  const result = await executePipelineAsync(text, historyTurns, {
-    apiKey: GEMINI_CONFIG.apiKey,
-    model: GEMINI_CONFIG.model
-  });
-
-  showProcessingIndicator(false);
-
-  // 4. Handle Emergency Interception if detected
-  if (result.type === 'emergency') {
-    if (emergencyOverlay) emergencyOverlay.classList.add('open');
+  activeAssessmentId = null;
+  sessionActiveTitle.textContent = 'Clinical Symptom Assessment';
+  if (initialSymptomInput) {
+    initialSymptomInput.value = '';
+    handleInitialInputChange();
   }
-
-  // 5. Append Assistant Message
-  const msgId = 'msg-' + Date.now();
-  session.messages.push({
-    role: 'assistant',
-    content: result.humanResponse,
-    type: result.type,
-    triage: result.triage,
-    timestamp: Date.now()
-  });
-
-  saveSessions();
-
-  const assistantHtml = renderAssistantMessage(result, msgId);
-  messagesStream.insertAdjacentHTML('beforeend', assistantHtml);
-  bindMessageActions(msgId, result.humanResponse);
-
-  playAcousticHaptic('complete');
-
-  isProcessing = false;
-  sendBtn.disabled = false;
-  userInput.disabled = false;
-  userInput.focus();
-
-  conversationScrollArea.scrollTop = conversationScrollArea.scrollHeight;
+  renderHistorySidebar();
+  closeMobileSidebar();
+  switchView('start');
 }
 
-function handleKeyDown(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    handleSendMessage();
+function showEmergencyScreen(triage) {
+  const flags = triage.matchedFlags ? triage.matchedFlags.map(f => f.pattern.toUpperCase()).join(', ') : 'CRITICAL RED-FLAG INDICATORS';
+  if (emergencyFlagDesc) {
+    emergencyFlagDesc.textContent = `Your reported symptoms indicate potential emergency indicators (${flags}). Please seek prompt professional emergency evaluation.`;
   }
+  switchView('emergency');
 }
 
-function handleInputChange() {
-  const len = userInput.value.length;
-  if (charCount) charCount.textContent = `${len}/1000`;
-  sendBtn.disabled = len === 0 || isProcessing;
-
-  userInput.style.height = 'auto';
-  userInput.style.height = Math.min(userInput.scrollHeight, 140) + 'px';
+function handleInitialInputChange() {
+  const len = initialSymptomInput.value.length;
+  if (startCharCount) startCharCount.textContent = `${len}/500`;
+  if (btnStartAssessment) btnStartAssessment.disabled = len === 0;
 }
 
-function showProcessingIndicator(show, text = 'Reviewing your symptoms...') {
-  if (!processingStatus) return;
-  processingStatus.style.display = show ? 'flex' : 'none';
-  if (processingText) processingText.textContent = text;
-}
-
-function setProcessingText(text) {
-  if (processingText) processingText.textContent = text;
-}
-
-function bindMessageActions(msgId, content) {
-  const container = document.getElementById(msgId);
-  if (!container) return;
-
-  const copyBtn = container.querySelector('.copy-msg-btn');
-  if (copyBtn) {
-    copyBtn.addEventListener('click', () => {
-      playAcousticHaptic('click');
-      navigator.clipboard.writeText(content).then(() => showToast('Response copied to clipboard'));
-    });
-  }
-
-  const speakBtn = container.querySelector('.speak-msg-btn');
-  if (speakBtn) {
-    speakBtn.addEventListener('click', () => {
-      playAcousticHaptic('click');
-      toggleSpeechSynthesis(msgId, content, speakBtn);
-    });
-  }
+function summarizeTitle(text) {
+  let clean = text.replace(/^(i have|i've had|i am experiencing|experiencing|my)\s+/i, '');
+  clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+  if (clean.length > 28) clean = clean.substring(0, 26) + '...';
+  return clean || 'Clinical Assessment';
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
- * SPEECH SYNTHESIS & VOICE RECOGNITION
- * ───────────────────────────────────────────────────────────────────────── */
-function toggleSpeechSynthesis(msgId, content, buttonEl) {
-  if (!('speechSynthesis' in window)) {
-    showToast('Speech synthesis not supported in this browser.');
-    return;
-  }
-
-  if (window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
-    if (activeSpeakingMsgId === msgId) {
-      activeSpeakingMsgId = null;
-      buttonEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> <span>Listen</span>`;
-      return;
-    }
-  }
-
-  const cleanText = content.replace(/###/g, '').replace(/\*\*/g, '').replace(/•/g, '');
-  const utterance = new SpeechSynthesisUtterance(cleanText);
-  utterance.rate = 0.95;
-  utterance.pitch = 1.0;
-
-  activeSpeakingMsgId = msgId;
-  buttonEl.innerHTML = `<span>⏹️ Stop</span>`;
-
-  utterance.onend = () => {
-    activeSpeakingMsgId = null;
-    buttonEl.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> <span>Listen</span>`;
-  };
-
-  window.speechSynthesis.speak(utterance);
-}
-
-function initVoiceRecognition() {
-  if (!voiceInputBtn) return;
-  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (!SpeechRec) {
-    voiceInputBtn.style.display = 'none';
-    return;
-  }
-
-  speechRecognitionInstance = new SpeechRec();
-  speechRecognitionInstance.continuous = false;
-  speechRecognitionInstance.interimResults = false;
-  speechRecognitionInstance.lang = 'en-US';
-
-  speechRecognitionInstance.onstart = () => {
-    isVoiceListening = true;
-    voiceInputBtn.classList.add('listening');
-    showToast('🎙️ Listening...');
-  };
-
-  speechRecognitionInstance.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    if (transcript) {
-      userInput.value = userInput.value ? `${userInput.value} ${transcript}` : transcript;
-      handleInputChange();
-    }
-  };
-
-  speechRecognitionInstance.onerror = () => {
-    isVoiceListening = false;
-    voiceInputBtn.classList.remove('listening');
-  };
-
-  speechRecognitionInstance.onend = () => {
-    isVoiceListening = false;
-    voiceInputBtn.classList.remove('listening');
-  };
-
-  voiceInputBtn.addEventListener('click', () => {
-    if (isVoiceListening) {
-      speechRecognitionInstance.stop();
-    } else {
-      speechRecognitionInstance.start();
-    }
-  });
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
- * THEME MANAGEMENT (LIGHT / DARK / SYSTEM)
+ * THEME & HAPTICS PREFERENCES
  * ───────────────────────────────────────────────────────────────────────── */
 function initTheme() {
   setTheme(currentTheme);
 }
 
 function setTheme(theme) {
-  let appliedTheme = theme;
+  let applied = theme;
   if (theme === 'system') {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    appliedTheme = prefersDark ? 'dark' : 'light';
+    applied = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
-  document.documentElement.setAttribute('data-theme', appliedTheme);
+  document.documentElement.setAttribute('data-theme', applied);
   currentTheme = theme;
   savePreferences();
 
-  // Update Settings Buttons
   document.querySelectorAll('[data-set-theme]').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-set-theme') === theme);
   });
 
-  // Update Sidebar Quick Toggle
   if (themeIconIndicator && themeTextIndicator) {
-    if (appliedTheme === 'dark') {
+    if (applied === 'dark') {
       themeIconIndicator.textContent = '☀️';
-      themeTextIndicator.textContent = 'Light Theme';
+      themeTextIndicator.textContent = 'Light Mode';
     } else {
       themeIconIndicator.textContent = '🌙';
-      themeTextIndicator.textContent = 'Dark Theme';
+      themeTextIndicator.textContent = 'Dark Mode';
     }
   }
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
- * AUDIO HAPTICS & ACOUSTIC FEEDBACK
- * ───────────────────────────────────────────────────────────────────────── */
 function playAcousticHaptic(type = 'click') {
   if (!isAudioHapticsEnabled) return;
   try {
@@ -574,32 +781,16 @@ function playAcousticHaptic(type = 'click') {
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
 
-    if (type === 'click') {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(600, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.04);
-      gain.gain.setValueAtTime(0.04, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.04);
-    } else if (type === 'complete') {
-      [523.25, 659.25].forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.06);
-        gain.gain.setValueAtTime(0.04, ctx.currentTime + i * 0.06);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.06 + 0.12);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + i * 0.06);
-        osc.stop(ctx.currentTime + i * 0.06 + 0.12);
-      });
-    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(type === 'complete' ? 650 : 500, ctx.currentTime);
+    gain.gain.setValueAtTime(0.04, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.05);
   } catch (e) {}
 }
 
@@ -608,7 +799,7 @@ function toggleAudioHaptics() {
   savePreferences();
   updateHapticsUI();
   playAcousticHaptic('click');
-  showToast(isAudioHapticsEnabled ? 'Haptics Enabled' : 'Haptics Muted');
+  showToast(isAudioHapticsEnabled ? 'Audio Feedback On' : 'Audio Feedback Off');
 }
 
 function updateHapticsUI() {
@@ -619,9 +810,23 @@ function updateHapticsUI() {
   }
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
- * SETTINGS & SIDEBAR DRAWERS
- * ───────────────────────────────────────────────────────────────────────── */
+function loadPreferences() {
+  try {
+    const t = localStorage.getItem('medassist_theme');
+    if (t) currentTheme = t;
+    const h = localStorage.getItem('medassist_haptics');
+    if (h !== null) isAudioHapticsEnabled = h === 'true';
+  } catch (e) {}
+  updateHapticsUI();
+}
+
+function savePreferences() {
+  try {
+    localStorage.setItem('medassist_theme', currentTheme);
+    localStorage.setItem('medassist_haptics', String(isAudioHapticsEnabled));
+  } catch (e) {}
+}
+
 function openSettings() {
   playAcousticHaptic('click');
   updateSettingsSessionCount();
@@ -649,24 +854,6 @@ function initCursorSpotlight() {
     cursorSpotlight.style.left = e.clientX + 'px';
     cursorSpotlight.style.top = e.clientY + 'px';
   });
-}
-
-function loadStoredPreferences() {
-  try {
-    const theme = localStorage.getItem('medassist_theme');
-    if (theme) currentTheme = theme;
-
-    const haptics = localStorage.getItem('medassist_haptics');
-    if (haptics !== null) isAudioHapticsEnabled = haptics === 'true';
-  } catch (e) {}
-  updateHapticsUI();
-}
-
-function savePreferences() {
-  try {
-    localStorage.setItem('medassist_theme', currentTheme);
-    localStorage.setItem('medassist_haptics', String(isAudioHapticsEnabled));
-  } catch (e) {}
 }
 
 function showToast(text) {
