@@ -702,12 +702,11 @@ async function processSymptoms(text) {
   updateRunnerStage(runnerEl, 3);
   await delay(300);
 
-  // Execute pipeline with session memory (past user messages) & Live Gemini AI config
+  // Execute pipeline with session memory (past user messages) & embedded GEMINI_CONFIG
   const chatHistory = conversationHistory.filter(m => m.role === 'user');
   const result = await executePipelineAsync(text, chatHistory, {
-    apiKey: geminiApiKey,
-    model: geminiModel,
-    isLiveAiEnabled: isLiveAiEnabled
+    apiKey: GEMINI_CONFIG.apiKey,
+    model: GEMINI_CONFIG.model
   });
 
   runnerEl.remove();
